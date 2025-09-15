@@ -1,0 +1,30 @@
+{
+  "name": "real-time-collaborative-code-review-platform",
+  "version": "1.0.0",
+  "main": "src/server.js",
+  "type": "module",
+  "scripts": {
+    "start:dev": "nodemon src/server.js",
+    "start:prod": " SET NODE_ENV=production&&nodemon src/server.js"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/markisaac1812/-Real-Time-Collaborative-Code-Review-Platform.git"
+  },
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/markisaac1812/-Real-Time-Collaborative-Code-Review-Platform/issues"
+  },
+  "homepage": "https://github.com/markisaac1812/-Real-Time-Collaborative-Code-Review-Platform#readme",
+  "description": "",
+  "dependencies": {
+    "dotenv": "^17.2.2",
+    "express": "^5.1.0",
+    "mongoose": "^8.18.1",
+    "morgan": "^1.10.1"
+  },
+  "devDependencies": {
+    "nodemon": "^3.1.10"
+  }
+}

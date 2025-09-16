@@ -1,7 +1,7 @@
 import dotenv from "dotenv";
+dotenv.config({ path: "./config.env" });
 import mongoose from "mongoose";
 import app from "./app.js";
-dotenv.config({ path: "./config.env" });
 
 process.on("uncaughtException", (err) => {
   console.log("unhandled exception shutting down");
@@ -14,8 +14,8 @@ const DB = process.env.MONGO_DB_CONNECTION_STRING.replace(
   process.env.MONGO_DB_PASSWORD
 );
 
-mongoose.connect(DB).then((con) =>{
-    console.log("db connection succefully");
+mongoose.connect(DB).then((con) => {
+  console.log("db connection succefully");
 });
 
 const port = process.env.PORT;
@@ -23,11 +23,9 @@ const server = app.listen(port, () => {
   console.log(`app running on port ${port}`);
 });
 
-process.on("unhandledRejection",(err) =>{
-    console.log(err.name,err.message);
-    server.close(()=>{
-        process.exit(1);
-    })
+process.on("unhandledRejection", (err) => {
+  console.log(err.name, err.message);
+  server.close(() => {
+    process.exit(1);
+  });
 });
-
-

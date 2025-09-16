@@ -43,3 +43,32 @@ export const signup = catchAsync(async(req,res,next) =>{
   }
   createSendToken(newUser, 201, res);
 });
+
+//login
+export const login = catchAsync(async (req, res, next) => {
+    const { username, password } = req.body;
+    //1) check if username and password exists
+    if (!username || !password) {
+      return next(new AppError("provide username and password", 400));
+    }
+    //2) check if user exist and password is correct
+    const user = await User.findOne({username}).select("+password");
+    if (!user || !(await user.correctPassword(password, user.password))) {
+      return next(new AppError("incorrect username or password", 400));
+    }
+    //3) login and send token
+    createSendToken(user, 200, res);
+  });
+
+  export const refresh = catchAsync(async (req, res, next) => {
+    const token = req.cookies.refreshToken;
+    if (!token) return next(new AppError("No refresh token", 401));
+  
+    const decoded = jwt.verify(token, process.env.JWT_REFRESH_TOKEN);
+    const user = await User.findById(decoded.id);
+    if (!user) return next(new AppError("User not found", 401));
+  
+    const newAccessToken = generateAccessToken(user._id);
+    res.json({ accessToken: newAccessToken });
+  });
+  

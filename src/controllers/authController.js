@@ -29,7 +29,7 @@ const createSendToken = (user, statusCode, res) => {
     maxAge: 7 * 24 * 60 * 60 * 1000, // 7days
   });
   res.status(statusCode).json({
-    status: "sucess",
+    status: "success",
     accessToken,
     data: { user },
   });
@@ -37,7 +37,22 @@ const createSendToken = (user, statusCode, res) => {
 
 //signp
 export const signup = catchAsync(async (req, res, next) => {
-  const newUser = await User.create(req.body);
+    const {
+        username,
+        email,
+        password,
+        confirmPassword,
+        profile,
+        skills
+      } = req.body;
+      const newUser = await User.create({
+        username,
+        email,
+        password,
+        confirmPassword,
+        profile,
+        skills
+      });
   if (!newUser) {
     return next(new AppError("Failed to create user", 400));
   }
@@ -56,6 +71,10 @@ export const login = catchAsync(async (req, res, next) => {
   if (!user || !(await user.correctPassword(password, user.password))) {
     return next(new AppError("incorrect username or password", 400));
   }
+  // 3) Check if user account is active
+  if (!user.isActive) {
+    return next(new AppError("Your account has been deactivated. Please contact support.", 403));
+  }
   // update lastLogin only
   user.lastLogin = Date.now();
   await user.save({ validateBeforeSave: false });
@@ -72,8 +91,21 @@ export const refresh = catchAsync(async (req, res, next) => {
   const user = await User.findById(decoded.id);
   if (!user) return next(new AppError("User not found", 401));
 
+  // Check if user is active
+  if (!user.isActive) {
+    return next(new AppError("Account is deactivated", 403));
+  }
+
+  // Check if user changed password after token was issued
+  if (user.changedPasswordAfter && user.changedPasswordAfter(decoded.iat)) {
+    return next(new AppError("User recently changed password. Please log in again.", 401));
+  }
+
   const newAccessToken = generateAccessToken(user._id);
-  res.json({ accessToken: newAccessToken });
+  res.status(200).json({
+    status: "success",
+    accessToken: newAccessToken
+  });
 });
 
 export const protect = catchAsync(async (req, res, next) => {
@@ -141,7 +173,6 @@ export const restrictedTo = (...role) => {
 };
 
 export const logout = catchAsync(async (req, res, next) => {
- 
   res.clearCookie("refreshToken", {
     httpOnly: true,
     secure: process.env.NODE_ENV === "production",
@@ -150,3 +181,39 @@ export const logout = catchAsync(async (req, res, next) => {
 
   res.status(200).json({ status: "sucess", message: "Logged out" });
 });
+
+export const deactivateAccount = catchAsync(async (req, res, next) => {
+    // Update user's isActive status to false
+    await User.findByIdAndUpdate(req.user.id, { isActive: false });
+  
+    // Clear refresh token cookie
+    res.clearCookie("refreshToken", {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === "production",
+      sameSite: "strict",
+    });
+  
+    res.status(200).json({
+      status: "success",
+      message: "Account has been deactivated"
+    });
+  });
+
+// CHANGE PASSWORD (Bonus - useful for Day 2)
+export const changePassword = catchAsync(async (req, res, next) => {
+    // 1) Get user from collection
+    const user = await User.findById(req.user.id).select('+password');
+  
+    // 2) Check if current password is correct
+    if (!(await user.correctPassword(req.body.passwordCurrent, user.password))) {
+      return next(new AppError('Your current password is incorrect.', 401));
+    }
+  
+    // 3) Update password
+    user.password = req.body.password;
+    user.confirmPassword = req.body.confirmPassword;
+    await user.save();
+  
+    // 4) Log user in with new password (send JWT)
+    createSendToken(user, 200, res);
+  });  

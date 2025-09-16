@@ -56,13 +56,12 @@ export const login = catchAsync(async (req, res, next) => {
   if (!user || !(await user.correctPassword(password, user.password))) {
     return next(new AppError("incorrect username or password", 400));
   }
-  //3) mark user active and update lastLogin, then send token
-  const updatedUser = await User.findByIdAndUpdate(
-    user._id,
-    { isActive: true, lastLogin: Date.now() },
-    { new: true }
-  );
-  createSendToken(updatedUser, 200, res);
+  // update lastLogin only
+  user.lastLogin = Date.now();
+  await user.save({ validateBeforeSave: false });
+
+  createSendToken(user, 200, res);
+
 });
 
 export const refresh = catchAsync(async (req, res, next) => {
@@ -109,7 +108,7 @@ export const protect = catchAsync(async (req, res, next) => {
 
   //3.5) block access if user has logged out (isActive=false)
   if (freshUser.isActive === false) {
-    return next(new AppError("User is logged out. Log in again", 401));
+    return next(new AppError("Account is deactivated. Contact support.", 403));
   }
 
   //4) chekc if user xhanged password after token was issued
@@ -142,16 +141,7 @@ export const restrictedTo = (...role) => {
 };
 
 export const logout = catchAsync(async (req, res, next) => {
-  if (!req.user || !req.user._id) {
-    return next(new AppError("Not authenticated", 401));
-  }
-
-  await User.findByIdAndUpdate(
-    req.user._id,
-    { isActive: false },
-    { new: true }
-  );
-
+ 
   res.clearCookie("refreshToken", {
     httpOnly: true,
     secure: process.env.NODE_ENV === "production",

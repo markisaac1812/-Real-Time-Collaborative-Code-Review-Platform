@@ -56,8 +56,13 @@ export const login = catchAsync(async (req, res, next) => {
   if (!user || !(await user.correctPassword(password, user.password))) {
     return next(new AppError("incorrect username or password", 400));
   }
-  //3) login and send token
-  createSendToken(user, 200, res);
+  //3) mark user active and update lastLogin, then send token
+  const updatedUser = await User.findByIdAndUpdate(
+    user._id,
+    { isActive: true, lastLogin: Date.now() },
+    { new: true }
+  );
+  createSendToken(updatedUser, 200, res);
 });
 
 export const refresh = catchAsync(async (req, res, next) => {
@@ -100,6 +105,11 @@ export const protect = catchAsync(async (req, res, next) => {
     return next(
       new AppError("User belonging to this token dont exist anymore", 400)
     );
+  }
+
+  //3.5) block access if user has logged out (isActive=false)
+  if (freshUser.isActive === false) {
+    return next(new AppError("User is logged out. Log in again", 401));
   }
 
   //4) chekc if user xhanged password after token was issued

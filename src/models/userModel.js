@@ -30,6 +30,16 @@ const userSchema = new mongoose.Schema(
       required: [true, "password is required"],
       minlength: [8, "password is too short. 8 char is at least"],
       select: false, // prevents accidentally leaking hashed passwords:
+      validate: {
+        validator: function(password) {
+          // Only validate on creation, not updates
+          if (this.isNew) {
+            return /^(?=.*[a-z])(?=.*[A-Z])(?=.*[0-9])(?=.*[!@#$%^&*])/.test(password);
+          }
+          return true;
+        },
+        message: "Password must contain uppercase, lowercase, number, and special character"
+      }
     },
     confirmPassword: {
       type: String,
@@ -42,22 +52,52 @@ const userSchema = new mongoose.Schema(
       },
     },
     profile: {
-      firstName: String,
-      lastName: String,
-      avatar: String,
-      bio: String,
-      githubUsername: String,
-      linkedinProfile: String,
+      firstName:{
+        type: String,
+        trim: true,
+        maxlength: [50, "First name cannot exceed 50 characters"]
+      },
+      lastName: {
+        type: String,
+        trim: true,
+        maxlength: [50, "Last name cannot exceed 50 characters"]
+      },
+      avatar: {
+        type: String,
+        default: null
+      },
+      bio: {
+        type: String,
+        maxlength: [500, "Bio cannot exceed 500 characters"],
+        trim: true
+      },
+      githubUsername: {
+        type: String,
+        maxlength: [50, "GitHub username cannot exceed 50 characters"],
+        trim: true
+      },
+      linkedinProfile: {
+        type: String,
+        validate: {
+          validator: function(url) {
+            if (!url) return true; // Optional field
+            return /^https?:\/\/.+/.test(url);
+          },
+          message: "Please provide a valid LinkedIn URL"
+        }
+      },
     },
     skills: [String], // ['JavaScript', 'Python', 'React']
     reputation: {
       points: {
         type: Number,
         default: 0,
+        min: 0,
       },
       level: {
         type: String,
         default: "Beginner", // beginner intermedite
+        enum: ["Beginner", "Intermediate", "Expert", "Master"],
       },
       reviewsGiven: {
         type: Number,
@@ -66,13 +106,15 @@ const userSchema = new mongoose.Schema(
       reviewsReceived: {
         type: Number,
         default: 0,
+        min: 0,
       },
       helpfulVotes: {
         type: Number,
         default: 0,
+        min: 0,
       },
     },
-    prefrences: {
+    preferences: {
       emailNotifications: {
         type: Boolean,
         default: true,
@@ -109,6 +151,11 @@ const userSchema = new mongoose.Schema(
   { versionKey: false }
 );
 
+// Indexes for better performance
+userSchema.index({ createdAt: -1 });
+userSchema.index({ 'reputation.points': -1 });
+userSchema.index({ skills: 1 });
+
 // password will be hashed in response,confirm password will not be shown in response
 userSchema.pre("save", async function (next) {
   if (!this.isModified("password")) return next();
@@ -138,6 +185,37 @@ userSchema.methods.changedPasswordAfter = function(JWTTimeStamp){
     }
     return false;
 }
+
+// Add useful instance methods
+userSchema.methods.updateReputation = function(points) {
+    this.reputation.points += points;
+    
+    // Update level based on points
+    if (this.reputation.points >= 1000) this.reputation.level = "Master";
+    else if (this.reputation.points >= 500) this.reputation.level = "Expert";
+    else if (this.reputation.points >= 100) this.reputation.level = "Intermediate";
+    else this.reputation.level = "Beginner";
+    
+    return this.save();
+  };
+  
+  userSchema.methods.getPublicProfile = function() {
+    const userObject = this.toObject();
+    delete userObject.password;
+    delete userObject.passwordChangedAt;
+    return userObject;
+  };
+
+  userSchema.statics.findActiveUsers = function() {
+    return this.find({ isActive: true });
+  };
+  
+  userSchema.statics.getLeaderboard = function(limit = 10) {
+    return this.find({ isActive: true })
+      .sort({ 'reputation.points': -1 })
+      .limit(limit)
+      .select('username profile reputation');
+  };  
 
 const User = mongoose.model("User", userSchema);
 export default User;

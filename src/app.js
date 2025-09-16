@@ -24,11 +24,12 @@ if(process.env.NODE_ENV === "development"){
 
 // for limiting no of req
 const limiter = rateLimiter({
-    max: 5,
-    windowMs: 60 * 60 * 1000,
+    max: 50,   // limit 50 requests to windowMs 
+    windowMs: 60 * 60 * 1000,  // around 15 mins
     message: 'too many requests with this ip , try again in an hour'
   });
-  app.use('/api', limiter);
+app.use(limiter);
+app.use(cors());
 
 app.use("/api/auth", authRoutes);
 

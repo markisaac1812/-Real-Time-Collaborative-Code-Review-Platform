@@ -1,5 +1,6 @@
 import mongoose from "mongoose";
 import bcrypt from "bcrypt";
+import crypto from "crypto";
 import validator from "validator";
 
 const userSchema = new mongoose.Schema(
@@ -31,15 +32,18 @@ const userSchema = new mongoose.Schema(
       minlength: [8, "password is too short. 8 char is at least"],
       select: false, // prevents accidentally leaking hashed passwords:
       validate: {
-        validator: function(password) {
+        validator: function (password) {
           // Only validate on creation, not updates
           if (this.isNew) {
-            return /^(?=.*[a-z])(?=.*[A-Z])(?=.*[0-9])(?=.*[!@#$%^&*])/.test(password);
+            return /^(?=.*[a-z])(?=.*[A-Z])(?=.*[0-9])(?=.*[!@#$%^&*])/.test(
+              password
+            );
           }
           return true;
         },
-        message: "Password must contain uppercase, lowercase, number, and special character"
-      }
+        message:
+          "Password must contain uppercase, lowercase, number, and special character",
+      },
     },
     confirmPassword: {
       type: String,
@@ -52,39 +56,39 @@ const userSchema = new mongoose.Schema(
       },
     },
     profile: {
-      firstName:{
+      firstName: {
         type: String,
         trim: true,
-        maxlength: [50, "First name cannot exceed 50 characters"]
+        maxlength: [50, "First name cannot exceed 50 characters"],
       },
       lastName: {
         type: String,
         trim: true,
-        maxlength: [50, "Last name cannot exceed 50 characters"]
+        maxlength: [50, "Last name cannot exceed 50 characters"],
       },
       avatar: {
         type: String,
-        default: null
+        default: null,
       },
       bio: {
         type: String,
         maxlength: [500, "Bio cannot exceed 500 characters"],
-        trim: true
+        trim: true,
       },
       githubUsername: {
         type: String,
         maxlength: [50, "GitHub username cannot exceed 50 characters"],
-        trim: true
+        trim: true,
       },
       linkedinProfile: {
         type: String,
         validate: {
-          validator: function(url) {
+          validator: function (url) {
             if (!url) return true; // Optional field
             return /^https?:\/\/.+/.test(url);
           },
-          message: "Please provide a valid LinkedIn URL"
-        }
+          message: "Please provide a valid LinkedIn URL",
+        },
       },
     },
     skills: [String], // ['JavaScript', 'Python', 'React']
@@ -145,15 +149,17 @@ const userSchema = new mongoose.Schema(
       type: Date,
     },
     passwordChangedAt: {
-        type: Date,
-    }
+      type: Date,
+    },
+    passwordResetToken: String,
+    passwordResetExpires: Date,
   },
   { versionKey: false }
 );
 
 // Indexes for better performance
 userSchema.index({ createdAt: -1 });
-userSchema.index({ 'reputation.points': -1 });
+userSchema.index({ "reputation.points": -1 });
 userSchema.index({ skills: 1 });
 
 // password will be hashed in response,confirm password will not be shown in response
@@ -166,10 +172,10 @@ userSchema.pre("save", async function (next) {
 
 // if user modifed(changed) his password => set time for password changed at
 userSchema.pre("save", function (next) {
-    if (!this.isModified("password") || this.isNew) return next();
-    this.passwordChangedAt = Date.now() - 1000; // ensure token timestamp is < this
-    next();
-  });
+  if (!this.isModified("password") || this.isNew) return next();
+  this.passwordChangedAt = Date.now() - 1000; // ensure token timestamp is < this
+  next();
+});
 
 userSchema.methods.correctPassword = async function (
   passwordInTheRequest,
@@ -178,47 +184,60 @@ userSchema.methods.correctPassword = async function (
   return await bcrypt.compare(passwordInTheRequest, passwordInDB);
 };
 
-userSchema.methods.changedPasswordAfter = function(JWTTimeStamp){
-    if(this.passwordChangedAt){
-        const changedTimeStamp = parseInt(this.passwordChangedAt.getTime()/1000,10);
-        return JWTTimeStamp< changedTimeStamp;
-    }
-    return false;
-}
+userSchema.methods.changedPasswordAfter = function (JWTTimeStamp) {
+  if (this.passwordChangedAt) {
+    const changedTimeStamp = parseInt(
+      this.passwordChangedAt.getTime() / 1000,
+      10
+    );
+    return JWTTimeStamp < changedTimeStamp;
+  }
+  return false;
+};
+
+userSchema.methods.createPasswordResetToken = function () {
+  const resetToken = crypto.randomBytes(32).toString("hex");
+  this.passwordResetToken = crypto
+    .createHash("sha256")
+    .update(resetToken)
+    .digest("hex");
+  this.passwordResetExpires = Date.now() + 10 * 60 * 1000; // 10 minutes
+  return resetToken;
+};
 
 // Add useful instance methods
-userSchema.methods.updateReputation = function(points) {
-    this.reputation.points += points;
-    
-    // Update level based on points
-    if (this.reputation.points >= 1000) this.reputation.level = "Master";
-    else if (this.reputation.points >= 500) this.reputation.level = "Expert";
-    else if (this.reputation.points >= 100) this.reputation.level = "Intermediate";
-    else this.reputation.level = "Beginner";
-    
-    return this.save();
-  };
-  
-  userSchema.methods.getPublicProfile = function() {
-    const userObject = this.toObject();
-    delete userObject.password;
-    delete userObject.passwordChangedAt;
-    return userObject;
-  };
+userSchema.methods.updateReputation = function (points) {
+  this.reputation.points += points;
 
-  userSchema.statics.findActiveUsers = function() {
-    return this.find({ isActive: true });
-  };
-  
-  userSchema.statics.getLeaderboard = function(limit = 10) {
-    return this.find({ isActive: true })
-      .sort({ 'reputation.points': -1 })
-      .limit(limit)
-      .select('username profile reputation');
-  };  
+  // Update level based on points
+  if (this.reputation.points >= 1000) this.reputation.level = "Master";
+  else if (this.reputation.points >= 500) this.reputation.level = "Expert";
+  else if (this.reputation.points >= 100)
+    this.reputation.level = "Intermediate";
+  else this.reputation.level = "Beginner";
+
+  return this.save();
+};
+
+userSchema.methods.getPublicProfile = function () {
+  const userObject = this.toObject();
+  delete userObject.password;
+  delete userObject.passwordChangedAt;
+  return userObject;
+};
+
+userSchema.statics.findActiveUsers = function () {
+  return this.find({ isActive: true });
+};
+
+userSchema.statics.getLeaderboard = function (limit = 10) {
+  return this.find({ isActive: true })
+    .sort({ "reputation.points": -1 })
+    .limit(limit)
+    .select("username profile reputation");
+};
 
 const User = mongoose.model("User", userSchema);
 export default User;
-
 
 // test foregt and reset passwords functions

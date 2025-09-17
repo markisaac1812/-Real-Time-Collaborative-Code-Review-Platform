@@ -1,6 +1,6 @@
 import User from "../models/userModel.js";
 import catchAsync from "./../utils/catchAsync.js";
-import appError from "./../utils/appError.js";
+import AppError from "./../utils/appError.js";
 
 export const getProfileForSignedUser = catchAsync(async (req, res, next) => {
   if (!req.user) {

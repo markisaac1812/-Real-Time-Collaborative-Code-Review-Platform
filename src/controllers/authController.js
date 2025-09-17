@@ -225,7 +225,7 @@ export const changePassword = catchAsync(async (req, res, next) => {
       return next(new AppError("Please provide your email address", 400));
     }
   
-    const user = await User.findOne({ email: email.toLowerCase() });
+    const user = await User.findOne({ email:email });
     if (!user) {
       return next(new AppError("No user found with that email address", 404));
     }

@@ -23,6 +23,39 @@ export const getProfileForSignedUser = catchAsycn(async(req,res,next)=>{
     });
 });
 
+export const updateProfileForSignedUser = catchAsycn(async(req,res,next)=>{
+    if (!req.user) {
+        return next(new AppError("User not found or not logged in", 404));
+      }
+      const allowedFields = ['profile', 'skills', 'preferences'];
+      const updateObj = {};
+    
+      // Filter only allowed fields
+      Object.keys(req.body).forEach(key => {
+        if (allowedFields.includes(key)) {
+          updateObj[key] = req.body[key];
+        }
+      });
+
+  if (updateObj.skills && updateObj.skills.length > 20) {
+    return next(new AppError("Cannot have more than 20 skills", 400));
+  }
+  const updatedUser = await User.findByIdAndUpdate(
+    req.user.id,
+    updateObj,
+    { new: true, runValidators: true }
+  );
+
+  if (!updatedUser) {
+    return next(new AppError("User not found", 404));
+  }
+
+  res.status(200).json({
+    status: "success",
+    data: updatedUser
+  });
+});
+
 export const  getProfile = catchAsycn(async(req,res,next)=>{
     const id = req.params.id;
     const userProfile = await User.findById(id);

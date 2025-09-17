@@ -3,6 +3,7 @@ import catchAsync from "../utils/catchAsync.js";
 import AppError from "../utils/appError.js";
 import jwt from "jsonwebtoken";
 import util from "util";
+import crypto from "crypto";
 
 //1) generate access and refresh tokens
 const generateAccessToken = (userId) => {
@@ -199,24 +200,23 @@ export const deactivateAccount = catchAsync(async (req, res, next) => {
     });
   });
 
-// CHANGE PASSWORD (Bonus - useful for Day 2)
-export const changePassword = catchAsync(async (req, res, next) => {
-    // 1) Get user from collection
-    const user = await User.findById(req.user.id).select('+password');
+// // CHANGE PASSWORD (Bonus - useful for Day 2)
+// export const changePassword = catchAsync(async (req, res, next) => {
+//     // 1) Get user from collection
+//     const user = await User.findById(req.user.id).select('+password');
+//     // 2) Check if current password is correct
+//     if (!(await user.correctPassword(req.body.passwordCurrent, user.password))) {
+//       return next(new AppError('Your current password is incorrect.', 401));
+//     }
   
-    // 2) Check if current password is correct
-    if (!(await user.correctPassword(req.body.passwordCurrent, user.password))) {
-      return next(new AppError('Your current password is incorrect.', 401));
-    }
+//     // 3) Update password
+//     user.password = req.body.password;
+//     user.confirmPassword = req.body.confirmPassword;
+//     await user.save();
   
-    // 3) Update password
-    user.password = req.body.password;
-    user.confirmPassword = req.body.confirmPassword;
-    await user.save();
-  
-    // 4) Log user in with new password (send JWT)
-    createSendToken(user, 200, res);
-  });  
+//     // 4) Log user in with new password (send JWT)
+//     createSendToken(user, 200, res);
+//   });  
 
   export const forgotPassword = catchAsync(async (req, res, next) => {
     const { email } = req.body;
@@ -258,7 +258,7 @@ export const changePassword = catchAsync(async (req, res, next) => {
     if (!user) {
       return next(new AppError("Token is invalid or has expired", 400));
     }
-  
+
     // Set new password
     user.password = req.body.password;
     user.confirmPassword = req.body.confirmPassword;

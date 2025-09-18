@@ -9,6 +9,7 @@ import {
   searchSubmissions,
   assignReviewer,
   getSubmissionAnalytics,
+  toggleVisibility,
 } from "../controllers/codeSubmissionController.js";
 
 import {
@@ -38,6 +39,9 @@ router
 router
   .route("/:id/assign-reviewers")
   .post(validateAssignReviewer, assignReviewer);
+router
+  .route("/:id/visibility")
+  .put(toggleVisibility);
 router
   .route("/analytics/overview")
   .get(restrictedTo("admin"), getSubmissionAnalytics);

@@ -286,11 +286,11 @@ export const createAdmin = catchAsync(async (req, res, next) => {
     return next(new AppError("Invalid admin creation secret", 403));
   }
 
-  // // Check if admin already exists
-  // const existingAdmin = await User.findOne({ role: 'admin' });
-  // if (existingAdmin) {
-  //   return next(new AppError("Admin account already exists", 400));
-  // }
+  // Check if admin already exists
+  const existingAdmin = await User.findOne({ role: 'admin' });
+  if (existingAdmin) {
+    return next(new AppError("Admin account already exists", 400));
+  }
 
   // Create admin user
   const adminUser = await User.create({

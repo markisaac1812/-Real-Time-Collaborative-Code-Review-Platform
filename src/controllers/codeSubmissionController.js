@@ -735,3 +735,33 @@ export const getSubmissionAnalytics = catchAsync(async (req, res, next) => {
   });
 });
 
+// TOGGLE SUBMISSION VISIBILITY
+export const toggleVisibility = catchAsync(async (req, res, next) => {
+  const id = req.params.id;
+  const { visibility } = req.body;
+
+  if (!['public', 'private', 'team'].includes(visibility)) {
+    return next(new AppError("Invalid visibility option", 400));
+  }
+
+  const submission = await CodeSubmission.findById(id);
+  
+  if (!submission) {
+    return next(new AppError("Submission not found", 404));
+  }
+
+  // Check if user is the author
+  if (submission.author.toString() !== req.user._id.toString()) {
+    return next(new AppError("Only the author can change visibility", 403));
+  }
+
+  submission.visibility = visibility;
+  await submission.save();
+
+  res.status(200).json({
+    status: "success",
+    message: `Submission visibility changed to ${visibility}`,
+    data: { submission }
+  });
+});
+

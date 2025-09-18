@@ -42,6 +42,22 @@ app.use("/api/auth", authRoutes);
 app.use("/api/users",userRoute);
 app.use("/api/submissions",codeSubmissionRoute);
 
+//API Documentation endpoint
+app.get("/api", (req, res) => {
+    res.status(200).json({
+        status: "success",
+        message: "CodeReview Platform API",
+        version: "1.0.0",
+        endpoints: {
+            auth: "/api/auth",
+            users: "/api/users", 
+            submissions: "/api/submissions"
+        },
+        documentation: "Visit /api/docs for detailed API documentation"
+    });
+});
+
+
 app.use("/{*any}", (req, res, next) => {
   next(new AppError(`couldnt find ${req.originalUrl} in our server`));
 });

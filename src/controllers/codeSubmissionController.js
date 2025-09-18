@@ -230,3 +230,53 @@ export const deleteSubmission = catchAsync(async (req, res, next) => {
     message: "Submission deleted successfully"
   });
 });
+
+// GET SUBMISSIONS BY SPECIFIC USER
+export const getSubmissionsByUser = catchAsync(async (req, res, next) => {
+  const  userId  = req.params.userId;
+  const { page = 1, limit = 10, includePrivate = false } = req.query;
+
+  // Check if user exists
+  const user = await User.findById(userId);
+  if (!user || !user.isActive) {
+    return next(new AppError("User not found", 404));
+  }
+
+  // Build filter
+  const filter = { author: userId };
+  
+  // Only include private submissions if viewing own profile
+  if (!includePrivate || !req.user || req.user._id.toString() !== userId) {
+    filter.visibility = 'public';
+  }
+
+  const skip = (page - 1) * limit;
+
+  const submissions = await CodeSubmission.find(filter)
+    .populate('author', 'username profile reputation')
+    .sort({ createdAt: -1 })
+    .limit(parseInt(limit))
+    .skip(skip);
+
+  const totalSubmissions = await CodeSubmission.countDocuments(filter);
+  const totalPages = Math.ceil(totalSubmissions / limit);
+
+  res.status(200).json({
+    status: "success",
+    results: submissions.length,
+    pagination: {
+      currentPage: parseInt(page),
+      totalPages,
+      totalResults: totalSubmissions
+    },
+    data: {
+      user: {
+        id: user._id,
+        username: user.username,
+        profile: user.profile,
+        reputation: user.reputation
+      },
+      submissions
+    }
+  });
+});

@@ -5,6 +5,7 @@ import {
   getSubmissionById,
   updateSubmission,
   deleteSubmission,
+  getSubmissionsByUser
 } from "../controllers/codeSubmissionController.js";
 import {
   validateCreateSubmission,
@@ -17,6 +18,7 @@ const router = Router();
 
 router.route("/").get(getSubmissions);
 router.route("/:id").get(getSubmissionById);
+router.route("/user/:userId").get(getSubmissionsByUser);
 
 router.use(protect);
 router.route("/").post(validateCreateSubmission, createSubmission);

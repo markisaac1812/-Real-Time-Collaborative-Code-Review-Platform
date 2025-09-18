@@ -103,7 +103,7 @@ const codeSubmissionSchema = new mongoose.Schema(
       enum: ["public", "private", "team"],
       default: "public",
     },
-    reviewrs: [
+    reviewers: [
       {
         user: {
           type: mongoose.Schema.ObjectId,
@@ -146,28 +146,28 @@ codeSubmissionSchema.index({ tags: 1 });
 codeSubmissionSchema.index({ status: 1, visibility: 1 });
 
 // Virtual for reviews
-codeSubmissionSchema.virtual('reviews', {
-    ref: 'Review',
-    foreignField: 'submission',
-    localField: '_id'
-  });
-  
-  // Middleware to update metadata before saving
-  codeSubmissionSchema.pre('save', function(next) {
-    if (this.isModified('code')) {
-      this.metadata.lineCount = this.code.split('\n').length;
-      this.metadata.characterCount = this.code.length;
-      this.metadata.estimatedReviewTime = Math.ceil(this.metadata.lineCount / 10);
-    }
-    this.updatedAt = Date.now();
-    next();
-  });
-  
-  // Instance method to increment views
-  codeSubmissionSchema.methods.incrementViews = function() {
-    this.analytics.views += 1;
-    return this.save({ validateBeforeSave: false });
-  };
+codeSubmissionSchema.virtual("reviews", {
+  ref: "Review",
+  foreignField: "submission",
+  localField: "_id",
+});
 
-const CodeSubmission =  mongoose.model("CodeSubmission",codeSubmissionSchema);
-export default CodeSubmission; 
+// Middleware to update metadata before saving
+codeSubmissionSchema.pre("save", function (next) {
+  if (this.isModified("code")) {
+    this.metadata.lineCount = this.code.split("\n").length;
+    this.metadata.characterCount = this.code.length;
+    this.metadata.estimatedReviewTime = Math.ceil(this.metadata.lineCount / 10);
+  }
+  this.updatedAt = Date.now();
+  next();
+});
+
+// Instance method to increment views
+codeSubmissionSchema.methods.incrementViews = function () {
+  this.analytics.views += 1;
+  return this.save({ validateBeforeSave: false });
+};
+
+const CodeSubmission = mongoose.model("CodeSubmission", codeSubmissionSchema);
+export default CodeSubmission;

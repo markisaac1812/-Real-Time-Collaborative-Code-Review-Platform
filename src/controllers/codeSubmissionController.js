@@ -1,6 +1,9 @@
 import CodeSubmission from "../models/CodeSubmission.js";
+import Review from "../models/Review.js";
+import User from "../models/userModel.js";
 import catchAsync from "../utils/catchAsync.js";
 import AppError from "../utils/appError.js";
+import { updateUserReputation } from './../utils/databaseHelpers.js'
 
 export const createSubmission = catchAsync(async (req, res, next) => {
   const {
@@ -37,7 +40,7 @@ export const createSubmission = catchAsync(async (req, res, next) => {
   await newSubmission.populate("author", "username profile reputation");
 
   // Update user reputation for creating a submission
-  await updateReputation(req.user._id, 5,"submission_created");
+  await updateUserReputation(req.user._id, 5,"submission_created");
   res.status(201).json({
     status: "success",
     data: newSubmission,
@@ -117,3 +120,113 @@ export const getSubmissions = catchAsync(async (req, res, next) => {
     data: { submissions }
   });
 })
+
+export const getSubmissionById = catchAsync(async (req, res, next) => {
+  const id  = req.params.id;
+
+  const submission = await CodeSubmission.findById(id)
+    .populate('author', 'username profile reputation createdAt')
+    .populate('reviewers.user', 'username profile reputation')
+    .populate({
+      path: 'reviews',
+      populate: {
+        path: 'reviewer',
+        select: 'username profile reputation'
+      }
+    });
+
+  if (!submission) {
+    return next(new AppError("Submission not found", 404));
+  }
+
+  // Check visibility permissions
+  if (submission.visibility === 'private' && 
+      (!req.user || submission.author._id.toString() !== req.user._id.toString())) {
+    return next(new AppError("You don't have permission to view this submission", 403));
+  }
+
+  // Increment view count (only if not the author viewing their own submission)
+  if (!req.user || submission.author._id.toString() !== req.user._id.toString()) {
+    await submission.incrementViews();
+  }
+
+  res.status(200).json({
+    status: "success",
+    data: { submission }
+  });
+});
+
+// UPDATE SUBMISSION (Author only)
+export const updateSubmission = catchAsync(async (req, res, next) => {
+  const id  = req.params.id;
+
+  // Find submission
+  const submission = await CodeSubmission.findById(id);
+  
+  if (!submission) {
+    return next(new AppError("Submission not found", 404));
+  }
+
+  // Check if user is the author
+  if (submission.author.toString() !== req.user._id.toString()) {
+    return next(new AppError("You can only update your own submissions", 403));
+  }
+
+  // Don't allow updating if submission is completed
+  if (submission.status === 'completed') {
+    return next(new AppError("Cannot update completed submissions", 400));
+  }
+
+  // Fields that can be updated
+  const allowedFields = ['title', 'description', 'code', 'tags', 'category', 'priority', 'visibility'];
+  const updateObj = {};
+
+  // Filter only allowed fields
+  Object.keys(req.body).forEach(key => {
+    if (allowedFields.includes(key)) {
+      updateObj[key] = req.body[key];
+    }
+  });
+
+  // Validate tags if being updated
+  if (updateObj.tags && updateObj.tags.length > 10) {
+    return next(new AppError("Cannot have more than 10 tags", 400));
+  }
+
+  // Update submission
+  const updatedSubmission = await CodeSubmission.findByIdAndUpdate(
+    id,
+    updateObj,
+    { new: true, runValidators: true }
+  ).populate('author', 'username profile reputation');
+
+  res.status(200).json({
+    status: "success",
+    data: { submission: updatedSubmission }
+  });
+});
+
+// DELETE SUBMISSION (Soft delete - change status to closed)
+export const deleteSubmission = catchAsync(async (req, res, next) => {
+  const id  = req.params.id;
+
+  const submission = await CodeSubmission.findById(id);
+  
+  if (!submission) {
+    return next(new AppError("Submission not found", 404));
+  }
+
+  // Check permissions (author or admin)
+  if (submission.author.toString() !== req.user._id.toString() && req.user.role !== 'admin') {
+    return next(new AppError("You can only delete your own submissions", 403));
+  }
+
+  // Soft delete by changing status
+  submission.status = 'closed';
+  await submission.save();
+
+  res.status(200).json({
+    status: "success",
+    message: "Submission deleted successfully"
+  });
+});

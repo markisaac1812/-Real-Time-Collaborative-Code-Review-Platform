@@ -777,7 +777,20 @@ export const toggleVisibility = catchAsync(async (req, res, next) => {
 
 // GET USER'S SUBMISSION STATISTICS
 export const getUserSubmissionStats = catchAsync(async (req, res, next) => {
-  const userId = req.params.userId || req.user._id;
+  let userId = req.params.userId || req.user?._id;
+
+  // Validate userId exists
+  if (!userId) {
+    return next(new AppError("User ID is required", 400));
+  }
+
+  // Validate ObjectId format
+  if (!mongoose.Types.ObjectId.isValid(userId)) {
+    return next(new AppError("Invalid user ID format", 400));
+  }
+
+  // Ensure userId is a string (in case it's already an ObjectId)
+  userId = userId.toString();
 
   const stats = await CodeSubmission.aggregate([
     { $match: { author: new mongoose.Types.ObjectId(userId) } },

@@ -7,31 +7,27 @@ import {
   deleteSubmission,
   getSubmissionsByUser,
   searchSubmissions,
-  assignReviewer,
   getSubmissionAnalytics,
-  toggleVisibility,
   getUserSubmissionStats,
+  toggleVisibility,
+  assignReviewer,
 } from "../controllers/codeSubmissionController.js";
-
 import {
   validateCreateSubmission,
   validateUpdateSubmission,
   validateAssignReviewer,
   validateSearch,
 } from "../middlewares/submissionValidationMiddle.js";
-
 import { protect, restrictedTo } from "../controllers/authController.js";
 const router = Router();
 
-//public routes
 router.route("/").get(getSubmissions);
 router.route("/search").get(validateSearch, searchSubmissions);
 router.route("/user/:userId").get(getSubmissionsByUser);
 router.route("/:id").get(getSubmissionById);
+router.route("/analytics/overview").get(getSubmissionAnalytics);
 
 router.use(protect);
-
-//protected routes
 router.route("/").post(validateCreateSubmission, createSubmission);
 router
   .route("/:id")
@@ -40,17 +36,10 @@ router
 router
   .route("/:id/assign-reviewers")
   .post(validateAssignReviewer, assignReviewer);
+router.route("/:id/visibility").put(toggleVisibility);
+router.route("/stats/me").get(getUserSubmissionStats);
+router.route("/stats/:userId").get(getUserSubmissionStats);
 router
-  .route("/:id/visibility")
-  .put(toggleVisibility);
-router
-  .route("/analytics/overview")
+  .route("/analytics/detailed")
   .get(restrictedTo("admin"), getSubmissionAnalytics);
-
-// Get specific user's submission stats  
-router
-  .route("/stats/:userId")
-  .get(getUserSubmissionStats);
-
-
 export default router;

@@ -1,3 +1,4 @@
+import mongoose from "mongoose";
 import CodeSubmission from "../models/CodeSubmission.js";
 import Review from "../models/Review.js";
 import User from "../models/userModel.js";
@@ -332,7 +333,7 @@ export const searchSubmissions = catchAsync(async (req, res, next) => {
   if (category) matchStage.category = category;
   if (status && status !== "all") matchStage.status = status;
   if (priority) matchStage.priority = priority;
-  if (author) matchStage.author = mongoose.Types.ObjectId(author);
+  if (author) matchStage.author = new mongoose.Types.ObjectId(author);
 
   // Tags filter
   if (tags) {
@@ -410,14 +411,14 @@ export const searchSubmissions = catchAsync(async (req, res, next) => {
                             $regexMatch: {
                               input: "$$this",
                               regex: q,
-                              options: "i"
-                            }
-                          }
-                        }
-                      }
+                              options: "i",
+                            },
+                          },
+                        },
+                      },
                     },
-                    0
-                  ]
+                    0,
+                  ],
                 },
                 3,
                 0,
@@ -522,45 +523,54 @@ export const searchSubmissions = catchAsync(async (req, res, next) => {
 
 // ASSIGN REVIEWER TO SUBMISSION
 export const assignReviewer = catchAsync(async (req, res, next) => {
-  const  id  = req.params.id;
+  const id = req.params.id;
   const { reviewerId } = req.body;
 
   const submission = await CodeSubmission.findById(id);
-  
+
   if (!submission) {
     return next(new AppError("Submission not found", 404));
   }
 
   // Check if user is the author or has permission
-  if (submission.author.toString() !== req.user._id.toString() && req.user.role !== 'admin') {
+  if (
+    submission.author.toString() !== req.user._id.toString() &&
+    req.user.role !== "admin"
+  ) {
     return next(new AppError("Only the author can assign reviewers", 403));
   }
 
   // Check if reviewer exists and is available
   const reviewer = await User.findById(reviewerId);
-  if (!reviewer || !reviewer.isActive || !reviewer.preferences.availableForReview) {
+  if (
+    !reviewer ||
+    !reviewer.isActive ||
+    !reviewer.preferences.availableForReview
+  ) {
     return next(new AppError("Reviewer not found or not available", 404));
   }
 
   // Check if reviewer is already assigned
   const isAlreadyAssigned = submission.reviewers.some(
-    r => r.user.toString() === reviewerId
+    (r) => r.user.toString() === reviewerId
   );
 
   if (isAlreadyAssigned) {
-    return next(new AppError("Reviewer is already assigned to this submission", 400));
+    return next(
+      new AppError("Reviewer is already assigned to this submission", 400)
+    );
   }
 
   // Add reviewer
   submission.reviewers.push({
     user: reviewerId,
     assignedAt: new Date(),
-    status: 'assigned'
+    status: "assigned",
   });
 
   // Update submission status if it was open
-  if (submission.status === 'open') {
-    submission.status = 'in-review';
+  if (submission.status === "open") {
+    submission.status = "in-review";
   }
 
   await submission.save();
@@ -576,34 +586,34 @@ export const assignReviewer = catchAsync(async (req, res, next) => {
   //   }
   // });
 
-  await submission.populate('reviewers.user', 'username profile reputation');
+  await submission.populate("reviewers.user", "username profile reputation");
 
   res.status(200).json({
     status: "success",
     message: "Reviewer assigned successfully",
-    data: { submission }
+    data: { submission },
   });
 });
 
 // GET SUBMISSION ANALYTICS
 export const getSubmissionAnalytics = catchAsync(async (req, res, next) => {
-  const { period = '30d' } = req.query;
-  
+  const { period = "30d" } = req.query;
+
   // Calculate date range
   let dateFilter = {};
   const now = new Date();
-  
+
   switch (period) {
-    case '7d':
+    case "7d":
       dateFilter = { $gte: new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000) };
       break;
-    case '30d':
+    case "30d":
       dateFilter = { $gte: new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000) };
       break;
-    case '90d':
+    case "90d":
       dateFilter = { $gte: new Date(now.getTime() - 90 * 24 * 60 * 60 * 1000) };
       break;
-    case 'all':
+    case "all":
       dateFilter = {};
       break;
     default:
@@ -614,30 +624,30 @@ export const getSubmissionAnalytics = catchAsync(async (req, res, next) => {
     {
       $match: {
         ...(Object.keys(dateFilter).length > 0 && { createdAt: dateFilter }),
-        visibility: 'public'
-      }
+        visibility: "public",
+      },
     },
     {
       $group: {
         _id: null,
         totalSubmissions: { $sum: 1 },
-        totalViews: { $sum: '$analytics.views' },
-        averageViews: { $avg: '$analytics.views' },
+        totalViews: { $sum: "$analytics.views" },
+        averageViews: { $avg: "$analytics.views" },
         completedSubmissions: {
-          $sum: { $cond: [{ $eq: ['$status', 'completed'] }, 1, 0] }
+          $sum: { $cond: [{ $eq: ["$status", "completed"] }, 1, 0] },
         },
         inReviewSubmissions: {
-          $sum: { $cond: [{ $eq: ['$status', 'in-review'] }, 1, 0] }
+          $sum: { $cond: [{ $eq: ["$status", "in-review"] }, 1, 0] },
         },
         openSubmissions: {
-          $sum: { $cond: [{ $eq: ['$status', 'open'] }, 1, 0] }
+          $sum: { $cond: [{ $eq: ["$status", "open"] }, 1, 0] },
         },
-        languageDistribution: { $push: '$language' },
-        categoryDistribution: { $push: '$category' },
-        averageCodeLength: { $avg: '$metadata.characterCount' },
-        averageLineCount: { $avg: '$metadata.lineCount' }
-      }
-    }
+        languageDistribution: { $push: "$language" },
+        categoryDistribution: { $push: "$category" },
+        averageCodeLength: { $avg: "$metadata.characterCount" },
+        averageLineCount: { $avg: "$metadata.lineCount" },
+      },
+    },
   ]);
 
   // Get top languages
@@ -645,18 +655,18 @@ export const getSubmissionAnalytics = catchAsync(async (req, res, next) => {
     {
       $match: {
         ...(Object.keys(dateFilter).length > 0 && { createdAt: dateFilter }),
-        visibility: 'public'
-      }
+        visibility: "public",
+      },
     },
     {
       $group: {
-        _id: '$language',
+        _id: "$language",
         count: { $sum: 1 },
-        averageViews: { $avg: '$analytics.views' }
-      }
+        averageViews: { $avg: "$analytics.views" },
+      },
     },
     { $sort: { count: -1 } },
-    { $limit: 10 }
+    { $limit: 10 },
   ]);
 
   // Get top tags
@@ -664,18 +674,18 @@ export const getSubmissionAnalytics = catchAsync(async (req, res, next) => {
     {
       $match: {
         ...(Object.keys(dateFilter).length > 0 && { createdAt: dateFilter }),
-        visibility: 'public'
-      }
+        visibility: "public",
+      },
     },
-    { $unwind: '$tags' },
+    { $unwind: "$tags" },
     {
       $group: {
-        _id: '$tags',
-        count: { $sum: 1 }
-      }
+        _id: "$tags",
+        count: { $sum: 1 },
+      },
     },
     { $sort: { count: -1 } },
-    { $limit: 10 }
+    { $limit: 10 },
   ]);
 
   // Get most active authors
@@ -683,35 +693,35 @@ export const getSubmissionAnalytics = catchAsync(async (req, res, next) => {
     {
       $match: {
         ...(Object.keys(dateFilter).length > 0 && { createdAt: dateFilter }),
-        visibility: 'public'
-      }
+        visibility: "public",
+      },
     },
     {
       $group: {
-        _id: '$author',
+        _id: "$author",
         submissionCount: { $sum: 1 },
-        totalViews: { $sum: '$analytics.views' }
-      }
+        totalViews: { $sum: "$analytics.views" },
+      },
     },
     { $sort: { submissionCount: -1 } },
     { $limit: 10 },
     {
       $lookup: {
-        from: 'users',
-        localField: '_id',
-        foreignField: '_id',
-        as: 'author'
-      }
+        from: "users",
+        localField: "_id",
+        foreignField: "_id",
+        as: "author",
+      },
     },
-    { $unwind: '$author' },
+    { $unwind: "$author" },
     {
       $project: {
-        username: '$author.username',
-        profile: '$author.profile',
+        username: "$author.username",
+        profile: "$author.profile",
         submissionCount: 1,
-        totalViews: 1
-      }
-    }
+        totalViews: 1,
+      },
+    },
   ]);
 
   const result = {
@@ -722,16 +732,16 @@ export const getSubmissionAnalytics = catchAsync(async (req, res, next) => {
       averageViews: 0,
       completedSubmissions: 0,
       inReviewSubmissions: 0,
-      openSubmissions: 0
+      openSubmissions: 0,
     },
     languages: languageStats,
     tags: tagStats,
-    topAuthors: authorStats
+    topAuthors: authorStats,
   };
 
   res.status(200).json({
     status: "success",
-    data: { analytics: result }
+    data: { analytics: result },
   });
 });
 
@@ -740,12 +750,12 @@ export const toggleVisibility = catchAsync(async (req, res, next) => {
   const id = req.params.id;
   const { visibility } = req.body;
 
-  if (!['public', 'private', 'team'].includes(visibility)) {
+  if (!["public", "private", "team"].includes(visibility)) {
     return next(new AppError("Invalid visibility option", 400));
   }
 
   const submission = await CodeSubmission.findById(id);
-  
+
   if (!submission) {
     return next(new AppError("Submission not found", 404));
   }
@@ -761,7 +771,57 @@ export const toggleVisibility = catchAsync(async (req, res, next) => {
   res.status(200).json({
     status: "success",
     message: `Submission visibility changed to ${visibility}`,
-    data: { submission }
+    data: { submission },
   });
 });
 
+// GET USER'S SUBMISSION STATISTICS
+export const getUserSubmissionStats = catchAsync(async (req, res, next) => {
+  const userId = req.params.userId || req.user._id;
+
+  const stats = await CodeSubmission.aggregate([
+    { $match: { author: new mongoose.Types.ObjectId(userId) } },
+    {
+      $group: {
+        _id: null,
+        totalSubmissions: { $sum: 1 },
+        totalViews: { $sum: "$analytics.views" },
+        averageViews: { $avg: "$analytics.views" },
+        completedReviews: { $sum: "$analytics.completedReviews" },
+        openSubmissions: {
+          $sum: { $cond: [{ $eq: ["$status", "open"] }, 1, 0] },
+        },
+        inReviewSubmissions: {
+          $sum: { $cond: [{ $eq: ["$status", "in-review"] }, 1, 0] },
+        },
+        completedSubmissions: {
+          $sum: { $cond: [{ $eq: ["$status", "completed"] }, 1, 0] },
+        },
+        languageDistribution: { $push: "$language" },
+        categoryDistribution: { $push: "$category" },
+        averageRating: { $avg: "$analytics.averageRating" },
+      },
+    },
+  ]);
+
+  // Get language breakdown
+  const languageBreakdown = await CodeSubmission.aggregate([
+    { $match: { author: new mongoose.Types.ObjectId(userId) } },
+    {
+      $group: {
+        _id: "$language",
+        count: { $sum: 1 },
+        averageViews: { $avg: "$analytics.views" },
+      },
+    },
+    { $sort: { count: -1 } },
+  ]);
+
+  res.status(200).json({
+    status: "success",
+    data: {
+      stats: stats[0] || {},
+      languageBreakdown,
+    },
+  });
+});

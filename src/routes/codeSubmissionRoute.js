@@ -10,6 +10,7 @@ import {
   assignReviewer,
   getSubmissionAnalytics,
   toggleVisibility,
+  getUserSubmissionStats,
 } from "../controllers/codeSubmissionController.js";
 
 import {
@@ -45,6 +46,11 @@ router
 router
   .route("/analytics/overview")
   .get(restrictedTo("admin"), getSubmissionAnalytics);
+
+// Get specific user's submission stats  
+router
+  .route("/stats/:userId")
+  .get(getUserSubmissionStats);
 
 
 export default router;

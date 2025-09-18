@@ -7,6 +7,7 @@ import AppError from "./utils/appError.js";
 import cookieParser from "cookie-parser";
 import authRoutes from "./routes/authRoute.js";
 import userRoute from "./routes/userRoute.js";
+import codeSubmissionRoute from "./routes/codeSubmissionRoute.js";
 import cors from "cors";
 import helmet from "helmet";
 import rateLimiter from "express-rate-limit";
@@ -39,6 +40,7 @@ app.use(cors());
 
 app.use("/api/auth", authRoutes);
 app.use("/api/users",userRoute);
+app.use("/api/submissions",codeSubmissionRoute);
 
 app.use("/{*any}", (req, res, next) => {
   next(new AppError(`couldnt find ${req.originalUrl} in our server`));

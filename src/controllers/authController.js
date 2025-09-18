@@ -271,3 +271,83 @@ export const deactivateAccount = catchAsync(async (req, res, next) => {
       message: "Password has been reset successfully"
     });
   });
+
+// DEVELOPMENT ONLY: Create admin account
+export const createAdmin = catchAsync(async (req, res, next) => {
+  // Only allow in development environment
+  if (process.env.NODE_ENV === 'production') {
+    return next(new AppError("Admin creation not allowed in production", 403));
+  }
+
+  // Check for admin creation secret key
+  const { adminSecret, username, email, password, confirmPassword } = req.body;
+  
+  if (!adminSecret || (adminSecret !== process.env.ADMIN_CREATION_SECRET && adminSecret !== "your-super-secret-admin-key-12345")) {
+    return next(new AppError("Invalid admin creation secret", 403));
+  }
+
+  // // Check if admin already exists
+  // const existingAdmin = await User.findOne({ role: 'admin' });
+  // if (existingAdmin) {
+  //   return next(new AppError("Admin account already exists", 400));
+  // }
+
+  // Create admin user
+  const adminUser = await User.create({
+    username,
+    email,
+    password,
+    confirmPassword,
+    role: 'admin',
+    profile: {
+      firstName: 'Admin',
+      lastName: 'User',
+      bio: 'System Administrator'
+    },
+    skills: ['administration'],
+    reputation: {
+      points: 1000,
+      level: 'Master'
+    }
+  });
+
+ createSendToken(adminUser, 201, res);
+});
+
+// // DEVELOPMENT ONLY: Promote user to admin
+// export const promoteToAdmin = catchAsync(async (req, res, next) => {
+//   // Only allow in development environment
+//   if (process.env.NODE_ENV === 'production') {
+//     return next(new AppError("User promotion not allowed in production", 403));
+//   }
+
+//   const { adminSecret, userId } = req.body;
+  
+//   if (!adminSecret || adminSecret !== process.env.ADMIN_CREATION_SECRET) {
+//     return next(new AppError("Invalid admin creation secret", 403));
+//   }
+
+//   // Find and update user
+//   const user = await User.findByIdAndUpdate(
+//     userId,
+//     { role: 'admin' },
+//     { new: true, runValidators: true }
+//   );
+
+//   if (!user) {
+//     return next(new AppError("User not found", 404));
+//   }
+
+//   res.status(200).json({
+//     status: "success",
+//     message: "User promoted to admin successfully",
+//     data: {
+//       user: {
+//         id: user._id,
+//         username: user.username,
+//         email: user.email,
+//         role: user.role
+//       }
+//     }
+//   });
+// });

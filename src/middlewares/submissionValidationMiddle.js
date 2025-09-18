@@ -50,6 +50,6 @@ import {
       return next(new AppError(`Search Validation Error: ${messages.join('; ')}`, 400));
     }
     
-    req.query = value;
+    req.validatedQuery = value;
     next();
   };

@@ -1,6 +1,7 @@
 import Review from "../models/Review.js";
 import CodeSubmission from "../models/CodeSubmission.js";
 import User from "../models/userModel.js";
+import Comment from "../models/comment.js";
 import catchAsync from "../utils/catchAsync.js";
 import AppError from "../utils/appError.js";
 import { updateUserReputation } from "../utils/databaseHelpers.js";
@@ -111,4 +112,42 @@ export const createReview = catchAsync(async (req, res, next) => {
     data: { review: newReview }
   });
 });
+
+// GET SINGLE REVIEW BY ID
+export const getReviewById = catchAsync(async (req, res, next) => {
+    const { reviewId } = req.params;
+  
+    const review = await Review.findById(reviewId)
+      .populate('reviewer', 'username profile reputation createdAt')
+      .populate('submission', 'title author visibility')
+      .populate({
+        path: 'comments',
+        populate: {
+          path: 'author',
+          select: 'username profile'
+        }
+      });
+  
+    if (!review) {
+      return next(new AppError("Review not found", 404));
+    }
+  
+    // Check permissions for draft reviews
+    if (review.status === 'draft') {
+      if (!req.user || review.reviewer._id.toString() !== req.user._id.toString()) {
+        return next(new AppError("You can only view your own draft reviews", 403));
+      }
+    }
+  
+    // Check submission visibility
+    if (review.submission.visibility === 'private' && 
+        (!req.user || review.submission.author.toString() !== req.user._id.toString())) {
+      return next(new AppError("You don't have permission to view this review", 403));
+    }
+  
+    res.status(200).json({
+      status: "success",
+      data: { review }
+    });
+  });
 

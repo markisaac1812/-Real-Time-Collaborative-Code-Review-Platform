@@ -134,7 +134,6 @@ const reviewSchema = new mongoose.Schema(
 );
 
 // Indexes
-reviewSchema.index({ submission: 1, reviewer: 1 });
 reviewSchema.index({ reviewer: 1, createdAt: -1 });
 reviewSchema.index({ status: 1 });
 

@@ -1,12 +1,13 @@
 import { Router } from "express";
-import { createReview } from "../controllers/reviewController";
-import { protect,restrictedTo } from "../controllers/authController";
+import { createReview } from "../controllers/reviewController.js";
+import { validateCreateReview } from "../middlewares/reviewValidationMiddle.js";
+import { protect,restrictedTo } from "../controllers/authController.js";
 
 const router = Router();
 
 router.use(protect);
 
 // create review for a certain submissoin
-router.post("/reviews/:submissionId", createReview);
+router.route("/submission/:submissionId").post(validateCreateReview, createReview);
 
-
+export default router;

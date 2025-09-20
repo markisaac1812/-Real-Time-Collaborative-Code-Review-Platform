@@ -1,9 +1,9 @@
-import User from "../models/userModel";
-import Submission from "../models/submissionModel";
-import Review from "../models/reviewModel";
-import catchAsync from "../utils/catchAsync";
-import AppError from "../utils/appError";
-import { updateUserReputation } from "../utils/databaseHelpers";
+import Review from "../models/Review.js";
+import CodeSubmission from "../models/CodeSubmission.js";
+import User from "../models/userModel.js";
+import catchAsync from "../utils/catchAsync.js";
+import AppError from "../utils/appError.js";
+import { updateUserReputation } from "../utils/databaseHelpers.js";
 
 export const createReview = catchAsync(async (req, res, next) => {
     const submissionId = req.params.submissionId;
@@ -16,7 +16,7 @@ export const createReview = catchAsync(async (req, res, next) => {
         timeSpent,
         status = 'draft'
       } = req.body;
-      const submission = await Submission.findById(submissionId);
+      const submission = await CodeSubmission.findById(submissionId);
       if (!submission) {
         return next(new AppError('Submission not found', 404));
       }

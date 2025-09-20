@@ -403,5 +403,64 @@ export const addLineComment = catchAsync(async (req, res, next) => {
     });
   });
 
+// MANUAL REVIEWER ASSIGNMENT (Enhanced from Day 3)
+export const manualAssignReviewer = catchAsync(async (req, res, next) => {
+    const { submissionId } = req.params;
+    const { reviewerId, message } = req.body;
   
+    const submission = await CodeSubmission.findById(submissionId);
+    
+    if (!submission) {
+      return next(new AppError("Submission not found", 404));
+    }
+  
+    // Check if user is the author or has permission
+    if (submission.author.toString() !== req.user._id.toString() && req.user.role !== 'admin') {
+      return next(new AppError("Only the author can assign reviewers", 403));
+    }
+  
+    // Check reviewer availability
+    const reviewer = await User.findById(reviewerId);
+    if (!reviewer || !reviewer.isActive) {
+      return next(new AppError("Reviewer not found or inactive", 404));
+    }
+  
+    if (!reviewer.preferences?.availableForReview) {
+      return next(new AppError("Reviewer is not available for reviews", 400));
+    }
+  
+    // Check if reviewer is already assigned
+    const isAlreadyAssigned = submission.reviewers.some(
+      r => r.user.toString() === reviewerId
+    );
+  
+    if (isAlreadyAssigned) {
+      return next(new AppError("Reviewer is already assigned to this submission", 400));
+    }
+  
+    // Add reviewer
+    submission.reviewers.push({
+      user: reviewerId,
+      assignedAt: new Date(),
+      status: 'assigned'
+    });
+  
+    // Update submission status if it was open
+    if (submission.status === 'open') {
+      submission.status = 'in-review';
+    }
+  
+    submission.analytics.reviewRequests += 1;
+    await submission.save();
+  
+    // TODO: Create notification for reviewer (Day 5)
+  
+    await submission.populate('reviewers.user', 'username profile reputation');
+  
+    res.status(200).json({
+      status: "success",
+      message: "Reviewer assigned successfully",
+      data: { submission }
+    });
+  });  
     

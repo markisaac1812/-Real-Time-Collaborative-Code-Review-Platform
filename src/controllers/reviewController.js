@@ -151,3 +151,54 @@ export const getReviewById = catchAsync(async (req, res, next) => {
     });
   });
 
+// GET REVIEWS FOR SUBMISSION
+export const getReviewsBySubmission = catchAsync(async (req, res, next) => {
+    const { submissionId } = req.params;
+    const { includeInteractions = false } = req.query;
+  
+    // Check if submission exists
+    const submission = await CodeSubmission.findById(submissionId);
+    if (!submission) {
+      return next(new AppError("Submission not found", 404));
+    }
+  
+    // Check visibility permissions
+    if (submission.visibility === 'private' && 
+        (!req.user || submission.author.toString() !== req.user._id.toString())) {
+      return next(new AppError("You don't have permission to view reviews for this submission", 403));
+    }
+  
+    // Build query
+    let query = Review.find({ submission: submissionId })
+      .populate('reviewer', 'username profile reputation createdAt')
+      .sort({ createdAt: -1 });
+  
+    // Include interactions (helpful votes, comments) if requested
+    if (includeInteractions) {
+      query = query.populate('interactions.helpful', 'username')
+                   .populate({
+                     path: 'comments',
+                     populate: {
+                       path: 'author',
+                       select: 'username profile'
+                     }
+                   });
+    }
+  
+    const reviews = await query;
+  
+    // Filter draft reviews (only reviewer can see their own drafts)
+    const filteredReviews = reviews.filter(review => {
+      if (review.status === 'draft') {
+        return req.user && review.reviewer._id.toString() === req.user._id.toString();
+      }
+      return true;
+    });
+  
+    res.status(200).json({
+      status: "success",
+      results: filteredReviews.length,
+      data: { reviews: filteredReviews }
+    });
+  });  
+

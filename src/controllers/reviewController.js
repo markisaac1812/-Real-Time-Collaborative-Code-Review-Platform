@@ -202,3 +202,110 @@ export const getReviewsBySubmission = catchAsync(async (req, res, next) => {
     });
   });  
 
+// UPDATE REVIEW (Reviewer only)
+export const updateReview = catchAsync(async (req, res, next) => {
+    const { reviewId } = req.params;
+    const {
+      overallFeedback,
+      rating,
+      lineComments,
+      categories,
+      suggestions,
+      timeSpent,
+      status
+    } = req.body;
+  
+    const review = await Review.findById(reviewId);
+    
+    if (!review) {
+      return next(new AppError("Review not found", 404));
+    }
+  
+    // Check if user is the reviewer
+    if (review.reviewer.toString() !== req.user._id.toString()) {
+      return next(new AppError("You can only update your own reviews", 403));
+    }
+  
+    // Don't allow updating submitted reviews (unless changing to revised)
+    if (review.status === 'submitted' && status !== 'revised') {
+      return next(new AppError("Cannot modify submitted reviews", 400));
+    }
+  
+    // If changing from draft to submitted, validate required fields
+    if (status === 'submitted' && review.status === 'draft') {
+      const finalRating = rating !== undefined ? rating : review.rating;
+      const finalFeedback = overallFeedback !== undefined ? overallFeedback : review.overallFeedback;
+      const finalCategories = categories !== undefined ? categories : review.categories;
+      
+      if (!finalRating || !finalFeedback || !finalCategories) {
+        return next(new AppError("Rating, overall feedback, and categories are required for submitted reviews", 400));
+      }
+    }
+  
+    // Get submission for line validation
+    const submission = await CodeSubmission.findById(review.submission);
+    
+    // Validate line comments if provided
+    if (lineComments && lineComments.length > 0) {
+      const codeLines = submission.code.split('\n').length;
+      const invalidLines = lineComments.filter(comment => 
+        comment.lineNumber < 1 || comment.lineNumber > codeLines
+      );
+      
+      if (invalidLines.length > 0) {
+        return next(new AppError("Some line comments reference invalid line numbers", 400));
+      }
+    }
+  
+    // Update allowed fields
+    const allowedFields = ['overallFeedback', 'rating', 'lineComments', 'categories', 'suggestions', 'timeSpent', 'status'];
+    const updateObj = {};
+  
+    allowedFields.forEach(field => {
+      if (req.body[field] !== undefined) {
+        updateObj[field] = req.body[field];
+      }
+    });
+  
+    const updatedReview = await Review.findByIdAndUpdate(
+      reviewId,
+      updateObj,
+      { new: true, runValidators: true }
+    ).populate('reviewer', 'username profile reputation');
+  
+    // Update submission analytics if review was submitted
+    if (status === 'submitted' && review.status === 'draft') {
+      submission.analytics.completedReviews += 1;
+      
+      // Recalculate average rating
+      const allReviews = await Review.find({ 
+        submission: submission._id, 
+        status: 'submitted' 
+      });
+      
+      if (allReviews.length > 0) {
+        const avgRating = allReviews.reduce((sum, r) => sum + r.rating, 0) / allReviews.length;
+        submission.analytics.averageRating = Math.round(avgRating * 10) / 10;
+      }
+  
+      // Update reviewer status in submission
+      const reviewerIndex = submission.reviewers.findIndex(
+        r => r.user.toString() === req.user._id.toString()
+      );
+      
+      if (reviewerIndex !== -1) {
+        submission.reviewers[reviewerIndex].status = 'completed';
+      }
+  
+      await submission.save();
+  
+      // Update reputation
+      await updateUserReputation(req.user._id, 10, 'review_given');
+      await updateUserReputation(submission.author, 2, 'review_received');
+    }
+  
+    res.status(200).json({
+      status: "success",
+      data: { review: updatedReview }
+    });
+  });

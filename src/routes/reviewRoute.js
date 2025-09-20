@@ -6,13 +6,15 @@ import {
   updateReview,
   deleteReview,
   addLineComment,
-  manualAssignReviewer
+  manualAssignReviewer,
+  checkReviewerAvailability,
 } from "../controllers/reviewController.js";
 import {
   validateCreateReview,
   validateUpdateReview,
   validateAddLineComment,
-  validateAssignReviewer
+  validateAssignReviewer,
+  validateAutoAssign,
 } from "../middlewares/reviewValidationMiddle.js";
 import { protect } from "../controllers/authController.js";
 
@@ -21,6 +23,10 @@ const router = Router();
 //public routes
 router.route("/submission/:submissionId").get(getReviewsBySubmission);
 router.route("/:reviewId").get(getReviewById);
+
+router
+  .route("/reviewer/:reviewerId/availability")
+  .get(checkReviewerAvailability);
 
 router.use(protect);
 

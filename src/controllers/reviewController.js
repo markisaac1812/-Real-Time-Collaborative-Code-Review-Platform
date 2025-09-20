@@ -464,3 +464,54 @@ export const manualAssignReviewer = catchAsync(async (req, res, next) => {
     });
   });  
     
+  // CHECK REVIEWER AVAILABILITY
+  export const checkReviewerAvailability = catchAsync(async (req, res, next) => {
+    const { reviewerId } = req.params;
+  
+    const reviewer = await User.findById(reviewerId)
+      .select('username profile reputation preferences isActive');
+  
+    if (!reviewer || !reviewer.isActive) {
+      return next(new AppError("Reviewer not found", 404));
+    }
+  
+    // Check availability settings
+    const isAvailable = reviewer.preferences?.availableForReview !== false;
+  
+    // Get current workload
+    const activeReviews = await Review.countDocuments({
+      reviewer: reviewerId,
+      status: { $in: ['draft', 'submitted'] }
+    });
+  
+    // Get pending assignments
+    const pendingAssignments = await CodeSubmission.countDocuments({
+      'reviewers.user': reviewerId,
+      'reviewers.status': 'assigned'
+    });
+  
+    const availability = {
+      isAvailable,
+      reputation: reviewer.reputation,
+      skills: reviewer.skills || [],
+      workload: {
+        activeReviews,
+        pendingAssignments,
+        totalActive: activeReviews + pendingAssignments
+      },
+      matchScore: 0 // This will be calculated based on submission context
+    };
+  
+    res.status(200).json({
+      status: "success",
+      data: { 
+        reviewer: {
+          id: reviewer._id,
+          username: reviewer.username,
+          profile: reviewer.profile
+        },
+        availability
+      }
+    });
+  });
+  

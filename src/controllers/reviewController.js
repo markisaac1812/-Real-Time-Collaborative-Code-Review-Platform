@@ -455,4 +455,47 @@ export const addLineComment = catchAsync(async (req, res, next) => {
       }
     });
   });
+
+// MARK REVIEW AS HELPFUL
+export const markHelpful = catchAsync(async (req, res, next) => {
+    const { reviewId } = req.params;
+  
+    const review = await Review.findById(reviewId);
+    
+    if (!review) {
+      return next(new AppError("Review not found", 404));
+    }
+  
+    // Can't mark own review as helpful
+    if (review.reviewer.toString() === req.user._id.toString()) {
+      return next(new AppError("You cannot mark your own review as helpful", 400));
+    }
+  
+    // Check if already marked as helpful
+    const alreadyHelpful = review.interactions.helpful.includes(req.user._id);
+    
+    if (alreadyHelpful) {
+      // Remove helpful vote
+      review.interactions.helpful = review.interactions.helpful.filter(
+        userId => userId.toString() !== req.user._id.toString()
+      );
+    } else {
+      // Add helpful vote
+      review.interactions.helpful.push(req.user._id);
+      
+      // Give reputation points to the reviewer
+      await updateUserReputation(review.reviewer, 1, 'helpful_vote');
+    }
+  
+    await review.save();
+  
+    res.status(200).json({
+      status: "success",
+      message: alreadyHelpful ? "Helpful vote removed" : "Review marked as helpful",
+      data: { 
+        helpful: !alreadyHelpful,
+        helpfulCount: review.interactions.helpful.length
+      }
+    });
+  });  
   

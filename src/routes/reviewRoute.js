@@ -7,6 +7,7 @@ import {
   deleteReview,
   addLineComment,
   checkReviewerAvailability,
+  markHelpful,
 } from "../controllers/reviewController.js";
 import {
   validateCreateReview,
@@ -45,6 +46,11 @@ router
 router
   .route("/:reviewId/line-comment")
   .post(validateAddLineComment, addLineComment);
+
+// mark review as helpful
+router
+  .route("/:reviewId/helpful")
+  .post(markHelpful);
 
 
 

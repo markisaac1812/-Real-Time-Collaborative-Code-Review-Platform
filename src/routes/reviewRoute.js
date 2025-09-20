@@ -6,7 +6,6 @@ import {
   updateReview,
   deleteReview,
   addLineComment,
-  manualAssignReviewer,
   checkReviewerAvailability,
 } from "../controllers/reviewController.js";
 import {
@@ -47,9 +46,6 @@ router
   .route("/:reviewId/line-comment")
   .post(validateAddLineComment, addLineComment);
 
-// assign reviewer to submission
-router
-  .route("/submission/:submissionId/assign")
-  .post(validateAssignReviewer, manualAssignReviewer);
+
 
 export default router;

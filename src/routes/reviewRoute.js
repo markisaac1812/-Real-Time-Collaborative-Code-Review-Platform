@@ -8,12 +8,12 @@ import {
   addLineComment,
   checkReviewerAvailability,
   markHelpful,
+  getReviewsByReviewer
 } from "../controllers/reviewController.js";
 import {
   validateCreateReview,
   validateUpdateReview,
   validateAddLineComment,
-  validateAssignReviewer,
   validateAutoAssign,
 } from "../middlewares/reviewValidationMiddle.js";
 import { protect } from "../controllers/authController.js";
@@ -51,6 +51,13 @@ router
 router
   .route("/:reviewId/helpful")
   .post(markHelpful);
+
+// Get reviews by specific reviewer
+router.get("/reviewer/:reviewerId", getReviewsByReviewer);
+
+// Get current user's reviews
+router.get("/my/reviews", getReviewsByReviewer);
+
 
 
 

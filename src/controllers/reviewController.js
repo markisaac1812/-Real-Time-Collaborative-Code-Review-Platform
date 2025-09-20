@@ -498,4 +498,44 @@ export const markHelpful = catchAsync(async (req, res, next) => {
       }
     });
   });  
+
+// GET REVIEWS BY REVIEWER (User's own reviews)
+export const getReviewsByReviewer = catchAsync(async (req, res, next) => {
+    const { page = 1, limit = 10, status } = req.query;
+    const reviewerId = req.params.reviewerId || req.user._id;
+  
+    // Only users can see their own reviews, or admins can see any
+    if (reviewerId.toString() !== req.user._id.toString() && req.user.role !== 'admin') {
+      return next(new AppError("You can only view your own reviews", 403));
+    }
+  
+    // Build filter
+    const filter = { reviewer: reviewerId };
+    if (status) filter.status = status;
+  
+    const skip = (page - 1) * limit;
+  
+    const reviews = await Review.find(filter)
+      .populate('submission', 'title author language createdAt')
+      .populate('submission.author', 'username profile')
+      .sort({ createdAt: -1 })
+      .limit(parseInt(limit))
+      .skip(skip);
+  
+    const totalReviews = await Review.countDocuments(filter);
+    const totalPages = Math.ceil(totalReviews / limit);
+  
+    res.status(200).json({
+      status: "success",
+      results: reviews.length,
+      pagination: {
+        currentPage: parseInt(page),
+        totalPages,
+        totalResults: totalReviews,
+        hasNext: page < totalPages,
+        hasPrev: page > 1
+      },
+      data: { reviews }
+    });
+  });  
   

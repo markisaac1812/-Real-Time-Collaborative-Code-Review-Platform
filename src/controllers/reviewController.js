@@ -309,3 +309,55 @@ export const updateReview = catchAsync(async (req, res, next) => {
       data: { review: updatedReview }
     });
   });
+
+// DELETE REVIEW
+export const deleteReview = catchAsync(async (req, res, next) => {
+    const { reviewId } = req.params;
+  
+    const review = await Review.findById(reviewId);
+    
+    if (!review) {
+      return next(new AppError("Review not found", 404));
+    }
+  
+    // Check permissions (reviewer or admin)
+    if (review.reviewer.toString() !== req.user._id.toString() && req.user.role !== 'admin') {
+      return next(new AppError("You can only delete your own reviews", 403));
+    }
+  
+    // Don't allow deleting submitted reviews with interactions
+    if (review.status === 'submitted' && 
+        (review.interactions.helpful.length > 0 || review.interactions.replies.length > 0)) {
+      return next(new AppError("Cannot delete reviews with interactions", 400));
+    }
+  
+    await Review.findByIdAndDelete(reviewId);
+  
+    // Update submission analytics if it was a submitted review
+    if (review.status === 'submitted') {
+      const submission = await CodeSubmission.findById(review.submission);
+      if (submission) {
+        submission.analytics.completedReviews = Math.max(0, submission.analytics.completedReviews - 1);
+        
+        // Recalculate average rating
+        const remainingReviews = await Review.find({ 
+          submission: submission._id, 
+          status: 'submitted' 
+        });
+        
+        if (remainingReviews.length > 0) {
+          const avgRating = remainingReviews.reduce((sum, r) => sum + r.rating, 0) / remainingReviews.length;
+          submission.analytics.averageRating = Math.round(avgRating * 10) / 10;
+        } else {
+          submission.analytics.averageRating = undefined;
+        }
+  
+        await submission.save();
+      }
+    }
+  
+    res.status(200).json({
+      status: "success",
+      message: "Review deleted successfully"
+    });
+  });  

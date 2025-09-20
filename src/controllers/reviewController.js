@@ -360,4 +360,48 @@ export const deleteReview = catchAsync(async (req, res, next) => {
       status: "success",
       message: "Review deleted successfully"
     });
-  });  
+  });
+
+// ADD LINE COMMENT TO EXISTING REVIEW
+export const addLineComment = catchAsync(async (req, res, next) => {
+    const  reviewId = req.params.reviewId;
+    const { lineNumber, comment, severity = 'info', suggestion } = req.body;
+  
+    const review = await Review.findById(reviewId);
+    
+    if (!review) {
+      return next(new AppError("Review not found", 404));
+    }
+  
+    // Check if user is the reviewer
+    if (review.reviewer.toString() !== req.user._id.toString()) {
+      return next(new AppError("You can only add comments to your own reviews", 403));
+    }
+  
+    // Get submission to validate line number
+    const submission = await CodeSubmission.findById(review.submission);
+    const codeLines = submission.code.split('\n').length;
+    
+    if (lineNumber < 1 || lineNumber > codeLines) {
+      return next(new AppError("Invalid line number", 400));
+    }
+  
+    // Add line comment
+    review.lineComments.push({
+      lineNumber,
+      comment,
+      severity,
+      suggestion,
+      createdAt: new Date()
+    });
+  
+    await review.save();
+  
+    res.status(200).json({
+      status: "success",
+      data: { review }
+    });
+  });
+
+  
+    

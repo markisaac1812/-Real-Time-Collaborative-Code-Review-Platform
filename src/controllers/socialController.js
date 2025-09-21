@@ -101,3 +101,40 @@ export const getFollowers = catchAsync(async (req, res, next) => {
     data: { followers }
   });
 });
+
+// GET USER'S FOLLOWING
+export const getFollowing = catchAsync(async (req, res, next) => {
+    const { userId } = req.params;
+    const { page = 1, limit = 20 } = req.query;
+  
+    const user = await User.findById(userId);
+    if (!user) {
+      return next(new AppError("User not found", 404));
+    }
+  
+    const skip = (page - 1) * limit;
+    
+    const following = await User.find({
+      _id: { $in: user.following || [] },
+      isActive: true
+    })
+      .select('username profile reputation createdAt')
+      .sort({ createdAt: -1 })
+      .limit(parseInt(limit))
+      .skip(skip);
+  
+    const totalFollowing = user.following?.length || 0;
+    const totalPages = Math.ceil(totalFollowing / limit);
+  
+    res.status(200).json({
+      status: "success",
+      results: following.length,
+      pagination: {
+        currentPage: parseInt(page),
+        totalPages,
+        totalResults: totalFollowing
+      },
+      data: { following }
+    });
+  });
+  

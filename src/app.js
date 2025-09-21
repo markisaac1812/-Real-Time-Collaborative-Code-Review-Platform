@@ -53,8 +53,17 @@ app.get("/api", (req, res) => {
         endpoints: {
             auth: "/api/auth",
             users: "/api/users", 
-            submissions: "/api/submissions"
+            submissions: "/api/submissions",
+            reviews: "/api/reviews"
         },
+        features: {
+          authentication: "JWT with refresh tokens",
+          userManagement: "Profile, reputation, skills",
+          submissions: "Code submission with analytics",
+          reviews: "Line-by-line code reviews", // NEW
+          search: "Advanced search and filtering",
+          analytics: "Platform and user statistics"
+      },
         documentation: "Visit /api/docs for detailed API documentation"
     });
 });

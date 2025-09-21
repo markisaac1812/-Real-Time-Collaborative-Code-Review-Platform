@@ -19,7 +19,7 @@ import {
   validateAddLineComment,
   validateAutoAssign,
 } from "../middlewares/reviewValidationMiddle.js";
-import { protect } from "../controllers/authController.js";
+import { protect,restrictedTo } from "../controllers/authController.js";
 
 const router = Router();
 
@@ -73,4 +73,6 @@ router.get("/submission/:submissionId/suggested-reviewers", getSuggestedReviewer
 // Auto assign reviewers
 router.route("/submission/:submissionId/auto-assign").post(validateAutoAssign, autoAssignReviewers);
 
+// Advanced review analytics (admin only)
+router.route("/stats/detailed").get(restrictedTo('admin'), getReviewStats);
 export default router;

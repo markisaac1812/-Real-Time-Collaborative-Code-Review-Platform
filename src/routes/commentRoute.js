@@ -1,6 +1,14 @@
-import {Router} from "express";
-import { createComment, getComments, getCommentById } from "../controllers/commentController.js";
-import { validateCreateComment } from "../middlewares/commentValidationMiddle.js";
+import { Router } from "express";
+import {
+  createComment,
+  getComments,
+  getCommentById,
+  updateComment,
+} from "../controllers/commentController.js";
+import {
+  validateCreateComment,
+  validateUpdateComment,
+} from "../middlewares/commentValidationMiddle.js";
 import { protect } from "../controllers/authController.js";
 const router = Router();
 
@@ -13,6 +21,12 @@ router.route("/:commentId").get(getCommentById);
 
 //private routes
 router.use(protect);
-router.route('/review/:reviewId').post(validateCreateComment,createComment);
+
+//create comment
+router.route("/review/:reviewId").post(validateCreateComment, createComment);
+
+//update comment
+router.route("/:commentId").put(validateUpdateComment, updateComment);
+
 
 export default router;

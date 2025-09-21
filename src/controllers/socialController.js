@@ -254,3 +254,96 @@ export const getFollowing = catchAsync(async (req, res, next) => {
       data: { activities: paginatedActivities }
     });
   });  
+
+  // UPDATE REPUTATION SYSTEM (Enhanced)
+  export const updateReputationSystem = catchAsync(async (req, res, next) => {
+    const userId = req.params.userId || req.user._id;
+    
+    if (userId.toString() !== req.user._id.toString() && req.user.role !== 'admin') {
+      return next(new AppError("You can only update your own reputation", 403));
+    }
+  
+    const user = await User.findById(userId);
+    if (!user) {
+      return next(new AppError("User not found", 404));
+    }
+  
+    // Recalculate reputation based on activities
+    const [submissionStats, reviewStats, commentStats] = await Promise.all([
+      CodeSubmission.aggregate([
+        { $match: { author:  new mongoose.Types.ObjectId(userId) } },
+        {
+          $group: {
+            _id: null,
+            totalSubmissions: { $sum: 1 },
+            totalViews: { $sum: '$analytics.views' },
+            averageRating: { $avg: '$analytics.averageRating' }
+          }
+        }
+      ]),
+      Review.aggregate([
+        { $match: { reviewer: new mongoose.Types.ObjectId(userId), status: 'submitted' } },
+        {
+          $group: {
+            _id: null,
+            totalReviews: { $sum: 1 },
+            totalHelpfulVotes: { $sum: { $size: '$interactions.helpful' } },
+            averageRating: { $avg: '$rating' }
+          }
+        }
+      ]),
+      Comment.aggregate([
+        { $match: { author: new mongoose.Types.ObjectId(userId) } },
+        {
+          $group: {
+            _id: null,
+            totalComments: { $sum: 1 },
+            totalLikes: { $sum: { $size: '$reactions.likes' } }
+          }
+        }
+      ])
+    ]);
+  
+    const submissionData = submissionStats[0] || {};
+    const reviewData = reviewStats[0] || {};
+    const commentData = commentStats[0] || {};
+  
+    // Calculate new reputation
+    let newReputation = 0;
+    
+    // Base points
+    newReputation += (submissionData.totalSubmissions || 0) * 5; // 5 points per submission
+    newReputation += (reviewData.totalReviews || 0) * 10; // 10 points per review
+    newReputation += (commentData.totalComments || 0) * 1; // 1 point per comment
+    
+    // Quality bonuses
+    newReputation += (reviewData.totalHelpfulVotes || 0) * 2; // 2 points per helpful vote
+    newReputation += (commentData.totalLikes || 0) * 1; // 1 point per comment like
+    newReputation += Math.floor((submissionData.totalViews || 0) / 10); // 1 point per 10 views
+  
+    // Update user reputation
+    user.reputation.points = Math.max(0, newReputation);
+    user.reputation.reviewsGiven = reviewData.totalReviews || 0;
+    user.reputation.helpfulVotes = reviewData.totalHelpfulVotes || 0;
+  
+    // Update level
+    if (user.reputation.points >= 1000) user.reputation.level = "Master";
+    else if (user.reputation.points >= 500) user.reputation.level = "Expert";
+    else if (user.reputation.points >= 100) user.reputation.level = "Intermediate";
+    else user.reputation.level = "Beginner";
+  
+    await user.save();
+  
+    res.status(200).json({
+      status: "success",
+      message: "Reputation updated successfully",
+      data: {
+        reputation: user.reputation,
+        breakdown: {
+          submissions: submissionData,
+          reviews: reviewData,
+          comments: commentData
+        }
+      }
+    });
+  });  

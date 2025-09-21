@@ -1,29 +1,80 @@
-import {
-  validateCreateComment,
-  validateUpdateComment,
-} from "../validations/commnetValidation.js";
-import AppError from "../utils/appError.js";
+import Joi from 'joi';
 
-export const validateCreateComment = (req,res,next)=>{
-    const {error,value} = validateCreateComment(req.body);
+export const validateCreateComment = (req, res, next) => {
+  const schema = Joi.object({
+    content: Joi.string()
+      .trim()
+      .min(1)
+      .max(1000)
+      .required()
+      .messages({
+        'string.min': 'Comment cannot be empty',
+        'string.max': 'Comment cannot exceed 1000 characters',
+        'any.required': 'Comment content is required'
+      }),
     
-    if(error){
-        const messages = error.details.map(detail => detail.message);
-        return next(new AppError(`Validation Error: ${messages.join('; ')}`, 400));
-    }
-    
-    req.body = value;
-    next();
-}
+    parentCommentId: Joi.string()
+      .pattern(/^[0-9a-fA-F]{24}$/)
+      .allow(null)
+      .messages({
+        'string.pattern.base': 'Invalid parent comment ID format'
+      })
+  });
 
-export const validateUpdateComment = (req,res,next)=>{
-    const {error,value} = validateUpdateComment(req.body);
-    
-    if(error){
-        const messages = error.details.map(detail => detail.message);
-        return next(new AppError(`Validation Error: ${messages.join('; ')}`, 400));
-    }
-    
-    req.body = value;
-    next();
-}
+  const { error, value } = schema.validate(req.body);
+  
+  if (error) {
+    const message = error.details[0].message;
+    return next(new AppError(message, 400));
+  }
+  
+  req.body = value;
+  next();
+};
+
+export const validateUpdateComment = (req, res, next) => {
+  const schema = Joi.object({
+    content: Joi.string()
+      .trim()
+      .min(1)
+      .max(1000)
+      .required()
+      .messages({
+        'string.min': 'Comment cannot be empty',
+        'string.max': 'Comment cannot exceed 1000 characters',
+        'any.required': 'Comment content is required'
+      })
+  });
+
+  const { error, value } = schema.validate(req.body);
+  
+  if (error) {
+    const message = error.details[0].message;
+    return next(new AppError(message, 400));
+  }
+  
+  req.body = value;
+  next();
+};
+
+export const validateReaction = (req, res, next) => {
+  const schema = Joi.object({
+    reaction: Joi.string()
+      .valid('like', 'dislike')
+      .required()
+      .messages({
+        'any.only': 'Reaction must be either "like" or "dislike"',
+        'any.required': 'Reaction is required'
+      })
+  });
+
+  const { error, value } = schema.validate(req.body);
+  
+  if (error) {
+    const message = error.details[0].message;
+    return next(new AppError(message, 400));
+  }
+  
+  req.body = value;
+  next();
+};

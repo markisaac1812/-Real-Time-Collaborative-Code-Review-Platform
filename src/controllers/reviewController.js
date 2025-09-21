@@ -764,4 +764,82 @@ export const getSuggestedReviewersForSubmission = catchAsync(async (req, res, ne
   
     return await User.aggregate(pipeline);
   };
+
+// AUTO-ASSIGN REVIEWERS BASED ON SKILLS
+export const autoAssignReviewers = catchAsync(async (req, res, next) => {
+    const { submissionId } = req.params;
+    const { maxReviewers = 3, minReputationLevel = 'Beginner' } = req.body;
+  
+    const submission = await CodeSubmission.findById(submissionId)
+      .populate('author', 'skills preferences');
+    
+    if (!submission) {
+      return next(new AppError("Submission not found", 404));
+    }
+  
+    // Check if user is the author
+    if (submission.author._id.toString() !== req.user._id.toString()) {
+      return next(new AppError("Only the author can auto-assign reviewers", 403));
+    }
+  
+    // Get suitable reviewers
+    const suggestedReviewers = await getSuggestedReviewers(submission, maxReviewers * 2); // Get more options
+  
+    if (suggestedReviewers.length === 0) {
+      return next(new AppError("No suitable reviewers found", 404));
+    }
+  
+    // Filter by reputation level if specified
+    const reputationOrder = ['Beginner', 'Intermediate', 'Expert', 'Master'];
+    const minLevelIndex = reputationOrder.indexOf(minReputationLevel);
+    
+    const qualifiedReviewers = suggestedReviewers.filter(reviewer => {
+      const reviewerLevelIndex = reputationOrder.indexOf(reviewer.reputation.level);
+      return reviewerLevelIndex >= minLevelIndex;
+    });
+  
+    // Select top reviewers (limit to maxReviewers)
+    const selectedReviewers = qualifiedReviewers.slice(0, maxReviewers);
+  
+    if (selectedReviewers.length === 0) {
+      return next(new AppError(`No reviewers found with minimum reputation level: ${minReputationLevel}`, 404));
+    }
+  
+    // Assign reviewers
+    const newReviewers = selectedReviewers.map(reviewer => ({
+      user: reviewer._id,
+      assignedAt: new Date(),
+      status: 'assigned'
+    }));
+  
+    // Add to existing reviewers (avoid duplicates)
+    const existingReviewerIds = submission.reviewers.map(r => r.user.toString());
+    const uniqueNewReviewers = newReviewers.filter(nr => 
+      !existingReviewerIds.includes(nr.user.toString())
+    );
+  
+    submission.reviewers.push(...uniqueNewReviewers);
+    
+    // Update submission status
+    if (submission.status === 'open') {
+      submission.status = 'in-review';
+    }
+  
+    await submission.save();
+  
+    // Populate reviewer info
+    await submission.populate('reviewers.user', 'username profile reputation');
+  
+    // TODO: Send notifications to assigned reviewers (Day 5)
+    
+    res.status(200).json({
+      status: "success",
+      message: `Successfully assigned ${uniqueNewReviewers.length} reviewers`,
+      data: { 
+        submission,
+        assignedReviewers: uniqueNewReviewers.length,
+        totalReviewers: submission.reviewers.length
+      }
+    });
+  });  
   

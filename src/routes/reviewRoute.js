@@ -10,7 +10,8 @@ import {
   markHelpful,
   getReviewsByReviewer,
   getReviewStats,
-  getSuggestedReviewersForSubmission
+  getSuggestedReviewersForSubmission,
+  autoAssignReviewers
 } from "../controllers/reviewController.js";
 import {
   validateCreateReview,
@@ -69,5 +70,7 @@ router.get("/stats/me", getReviewStats);
 // Get suggested reviewers for submission
 router.get("/submission/:submissionId/suggested-reviewers", getSuggestedReviewersForSubmission);
 
+// Auto assign reviewers
+router.route("/submission/:submissionId/auto-assign").post(validateAutoAssign, autoAssignReviewers);
 
 export default router;

@@ -47,13 +47,16 @@ const userSchema = new mongoose.Schema(
     },
     confirmPassword: {
       type: String,
-      required: [true, "Confirm Password is required"],
+      required: function() {
+        return this.isNew; // Only required for new documents
+      },
       validate: {
         validator: function (pass) {
           return pass === this.password;
         },
         message: "passwords are not the same",
       },
+      select: false // Don't include in queries
     },
     profile: {
       firstName: {

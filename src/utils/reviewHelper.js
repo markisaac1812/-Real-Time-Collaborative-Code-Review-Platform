@@ -1,5 +1,5 @@
-import Review from "./../models/reviewModel.js";
-import CodeSubmission from "./../models/codeSubmissionModel.js";
+import Review from "./../models/Review.js";
+import CodeSubmission from "./../models/CodeSubmission.js";
 import User from "./../models/userModel.js";
 
 // Calculate review quality score

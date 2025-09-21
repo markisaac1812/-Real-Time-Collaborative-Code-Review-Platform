@@ -5,6 +5,7 @@ import {
   getCommentById,
   updateComment,
   deleteComment,
+  reactToComment
 } from "../controllers/commentController.js";
 import {
   validateCreateComment,
@@ -31,6 +32,9 @@ router.route("/:commentId").put(validateUpdateComment, updateComment);
 
 //delete comment
 router.route("/:commentId").delete(deleteComment);
+
+// React to comment (like/dislike)
+router.post("/:commentId/react", reactToComment);
 
 
 export default router;

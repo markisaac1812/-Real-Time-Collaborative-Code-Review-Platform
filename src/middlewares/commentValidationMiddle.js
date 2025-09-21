@@ -1,4 +1,5 @@
 import Joi from 'joi';
+import AppError from '../utils/appError.js';
 
 export const validateCreateComment = (req, res, next) => {
   const schema = Joi.object({

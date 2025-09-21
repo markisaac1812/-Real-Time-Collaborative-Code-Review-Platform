@@ -316,3 +316,68 @@ export const deleteComment = catchAsync(async (req, res, next) => {
     });
   }
 });
+
+// REACT TO COMMENT (LIKE/DISLIKE)
+export const reactToComment = catchAsync(async (req, res, next) => {
+    const { commentId } = req.params;
+    const { reaction } = req.body; // 'like' or 'dislike'
+  
+    if (!['like', 'dislike'].includes(reaction)) {
+      return next(new AppError("Invalid reaction type", 400));
+    }
+  
+    const comment = await Comment.findById(commentId);
+    if (!comment) {
+      return next(new AppError("Comment not found", 404));
+    }
+  
+    // Can't react to own comment
+    if (comment.author.toString() === req.user._id.toString()) {
+      return next(new AppError("You cannot react to your own comment", 400));
+    }
+  
+    const userId = req.user._id;
+    const reactionField = reaction === 'like' ? 'likes' : 'dislikes';
+    const oppositeField = reaction === 'like' ? 'dislikes' : 'likes';
+  
+    // Initialize reactions if they don't exist
+    if (!comment.reactions) {
+      comment.reactions = { likes: [], dislikes: [] };
+    }
+    if (!comment.reactions.likes) comment.reactions.likes = [];
+    if (!comment.reactions.dislikes) comment.reactions.dislikes = [];
+  
+    // Remove from opposite reaction if exists
+    comment.reactions[oppositeField] = comment.reactions[oppositeField].filter(
+      id => id.toString() !== userId.toString()
+    );
+  
+    // Toggle current reaction
+    const currentReactionIndex = comment.reactions[reactionField].findIndex(
+      id => id.toString() === userId.toString()
+    );
+    
+    if (currentReactionIndex > -1) {
+      // Remove reaction
+      comment.reactions[reactionField].splice(currentReactionIndex, 1);
+    } else {
+      // Add reaction
+      comment.reactions[reactionField].push(userId);
+      
+      // Give small reputation boost to comment author for likes
+      if (reaction === 'like') {
+        await updateUserReputation(comment.author, 1, 'comment_liked');
+      }
+    }
+  
+    await comment.save();
+  
+    res.status(200).json({
+      status: "success",
+      data: {
+        likes: comment.reactions.likes.length,
+        dislikes: comment.reactions.dislikes.length,
+        userReaction: currentReactionIndex > -1 ? null : reaction
+      }
+    });
+  });

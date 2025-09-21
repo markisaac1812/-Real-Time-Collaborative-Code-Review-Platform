@@ -346,4 +346,30 @@ export const getFollowing = catchAsync(async (req, res, next) => {
         }
       }
     });
+  }); 
+  
+// GET SOCIAL STATS
+export const getSocialStats = catchAsync(async (req, res, next) => {
+    const { userId } = req.params;
+  
+    const user = await User.findById(userId);
+    if (!user) {
+      return next(new AppError("User not found", 404));
+    }
+  
+    const stats = {
+      followers: user.followers?.length || 0,
+      following: user.following?.length || 0,
+      reputation: user.reputation,
+      totalSubmissions: await CodeSubmission.countDocuments({ author: userId }),
+      totalReviews: await Review.countDocuments({ reviewer: userId, status: 'submitted' }),
+      totalComments: await Comment.countDocuments({ author: userId }),
+      joinedDate: user.createdAt,
+      lastActive: user.lastLogin
+    };
+  
+    res.status(200).json({
+      status: "success",
+      data: { stats }
+    });
   });  

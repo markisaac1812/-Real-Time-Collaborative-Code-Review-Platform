@@ -9,7 +9,8 @@ import {
   checkReviewerAvailability,
   markHelpful,
   getReviewsByReviewer,
-  getReviewStats
+  getReviewStats,
+  getSuggestedReviewersForSubmission
 } from "../controllers/reviewController.js";
 import {
   validateCreateReview,
@@ -65,6 +66,8 @@ router.get("/my/reviews", getReviewsByReviewer);
 // Get personal review statistics
 router.get("/stats/me", getReviewStats);
 
+// Get suggested reviewers for submission
+router.get("/submission/:submissionId/suggested-reviewers", getSuggestedReviewersForSubmission);
 
 
 export default router;

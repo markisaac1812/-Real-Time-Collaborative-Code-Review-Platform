@@ -645,4 +645,123 @@ export const getReviewStats = catchAsync(async (req, res, next) => {
     data: { stats: result }
   });
 });   
+
+// GET SUGGESTED REVIEWERS FOR SUBMISSION
+export const getSuggestedReviewersForSubmission = catchAsync(async (req, res, next) => {
+    const { submissionId } = req.params;
+    const { limit = 5 } = req.query;
+    const limitNum = parseInt(limit, 10) || 5; // Default to 5 if invalid
+  
+    const submission = await CodeSubmission.findById(submissionId);
+    
+    if (!submission) {
+      return next(new AppError("Submission not found", 404));
+    }
+  
+    // Check if user is the author
+    if (submission.author.toString() !== req.user._id.toString()) {
+      return next(new AppError("Only the author can view suggested reviewers", 403));
+    }
+  
+    const suggestedReviewers = await getSuggestedReviewers(submission, limitNum);
+  
+    res.status(200).json({
+      status: "success",
+      results: suggestedReviewers.length,
+      data: { reviewers: suggestedReviewers }
+    });
+  });
+  
+  // ================================
+  // HELPER FUNCTION: GET SUGGESTED REVIEWERS
+  // ================================
+  const getSuggestedReviewers = async (submission, limit = 5) => {
+    const pipeline = [
+      {
+        $match: {
+          _id: { $ne: submission.author }, // Not the author
+          isActive: true,
+          'preferences.availableForReview': { $ne: false }
+        }
+      },
+      {
+        $addFields: {
+          skillMatch: {
+            $size: {
+              $setIntersection: ['$skills', submission.tags]
+            }
+          },
+          languageMatch: {
+            $cond: [
+              { $in: [submission.language, '$preferences.languages'] },
+              1,
+              0
+            ]
+          }
+        }
+      },
+      {
+        $addFields: {
+          matchScore: {
+            $add: [
+              { $multiply: ['$skillMatch', 3] }, // Skill match worth 3 points each
+              { $multiply: ['$languageMatch', 5] }, // Language match worth 5 points
+              { $divide: ['$reputation.points', 100] }, // Reputation bonus
+              { $multiply: ['$reputation.reviewsGiven', 0.1] } // Experience bonus
+            ]
+          }
+        }
+      },
+      {
+        $lookup: {
+          from: 'reviews',
+          let: { userId: '$_id' },
+          pipeline: [
+            {
+              $match: {
+                $expr: {
+                  $and: [
+                    { $eq: ['$reviewer', '$$userId'] },
+                    { $in: ['$status', ['draft', 'assigned']] }
+                  ]
+                }
+              }
+            }
+          ],
+          as: 'activeReviews'
+        }
+      },
+      {
+        $addFields: {
+          workload: { $size: '$activeReviews' }
+        }
+      },
+      {
+        $match: {
+          workload: { $lt: 5 } // Don't suggest reviewers with 5+ active reviews
+        }
+      },
+      {
+        $sort: { matchScore: -1, 'reputation.points': -1 }
+      },
+      {
+        $limit: limit
+      },
+      {
+        $project: {
+          username: 1,
+          profile: 1,
+          reputation: 1,
+          skills: 1,
+          matchScore: 1,
+          skillMatch: 1,
+          languageMatch: 1,
+          workload: 1,
+          'preferences.languages': 1
+        }
+      }
+    ];
+  
+    return await User.aggregate(pipeline);
+  };
   

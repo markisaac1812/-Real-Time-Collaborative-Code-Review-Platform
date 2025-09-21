@@ -1,4 +1,4 @@
-import Notification from '../models/notificationModel.js';
+import Notification from '../models/notification.js';
 import User from '../models/userModel.js';
 
 // Create notification with user preference checks

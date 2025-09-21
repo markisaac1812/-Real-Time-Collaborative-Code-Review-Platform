@@ -128,6 +128,19 @@ const userSchema = new mongoose.Schema(
         type: Boolean,
         default: true,
       },
+      notificationTypes: {
+        type: Map,
+        of: Boolean,
+        default: {
+          review_request: true,
+          review_completed: true,
+          comment_added: true,
+          submission_updated: true,
+          mention: true,
+          follow: true,
+          helpful_vote: true
+        }
+      }
     },
     isActive: {
       type: Boolean,

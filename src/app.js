@@ -9,6 +9,7 @@ import authRoutes from "./routes/authRoute.js";
 import userRoute from "./routes/userRoute.js";
 import codeSubmissionRoute from "./routes/codeSubmissionRoute.js";
 import reviewRoute from "./routes/reviewRoute.js";
+import commentRoute from "./routes/commentRoute.js";
 import cors from "cors";
 import helmet from "helmet";
 import rateLimiter from "express-rate-limit";
@@ -43,6 +44,7 @@ app.use("/api/auth", authRoutes);
 app.use("/api/users",userRoute);
 app.use("/api/submissions",codeSubmissionRoute);
 app.use("/api/reviews",reviewRoute);
+app.use("/api/comments",commentRoute);
 
 //API Documentation endpoint
 app.get("/api", (req, res) => {

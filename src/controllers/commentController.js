@@ -106,3 +106,81 @@ export const createComment = catchAsync(async (req, res, next) => {
       data: { comment: newComment }
     });
   });
+
+// HELPER FUNCTION: GET NESTED REPLIES
+const getNestedReplies = async (parentCommentId, maxDepth = 5, currentDepth = 0) => {
+    if (currentDepth >= maxDepth) return [];
+  
+    const replies = await Comment.find({ parentComment: parentCommentId })
+      .populate('author', 'username profile reputation')
+      .sort({ createdAt: 1 });
+  
+    const nestedReplies = await Promise.all(
+      replies.map(async (reply) => {
+        const replyObj = reply.toObject();
+        replyObj.replies = await getNestedReplies(reply._id, maxDepth, currentDepth + 1);
+        replyObj.replyCount = await Comment.countDocuments({ parentComment: reply._id });
+        return replyObj;
+      })
+    );
+  
+    return nestedReplies;
+  };  
+
+// GET COMMENTS FOR REVIEW (WITH NESTING)
+export const getComments = catchAsync(async (req, res, next) => {
+    const { reviewId } = req.params;
+    const { page = 1, limit = 20, sortBy = 'createdAt', sortOrder = 'asc' } = req.query;
+  
+    // Verify review exists
+    const review = await Review.findById(reviewId);
+    if (!review) {
+      return next(new AppError("Review not found", 404));
+    }
+  
+    // Build sort object
+    const sort = {};
+    sort[sortBy] = sortOrder === 'desc' ? -1 : 1;
+  
+    // Get top-level comments (no parent)
+    const skip = (page - 1) * limit;
+    const topLevelComments = await Comment.find({ 
+      review: reviewId, 
+      parentComment: null 
+    })
+      .populate('author', 'username profile reputation')
+      .sort(sort)
+      .limit(parseInt(limit))
+      .skip(skip);
+  
+    // Get all replies for these comments (recursive)
+    const commentsWithReplies = await Promise.all(
+      topLevelComments.map(async (comment) => {
+        const commentObj = comment.toObject();
+        commentObj.replies = await getNestedReplies(comment._id);
+        commentObj.replyCount = await Comment.countDocuments({ parentComment: comment._id });
+        return commentObj;
+      })
+    );
+  
+    const totalComments = await Comment.countDocuments({ 
+      review: reviewId, 
+      parentComment: null 
+    });
+    
+    const totalPages = Math.ceil(totalComments / limit);
+  
+    res.status(200).json({
+      status: "success",
+      results: commentsWithReplies.length,
+      pagination: {
+        currentPage: parseInt(page),
+        totalPages,
+        totalResults: totalComments,
+        hasNext: page < totalPages,
+        hasPrev: page > 1
+      },
+      data: { comments: commentsWithReplies }
+    });
+  });
+  

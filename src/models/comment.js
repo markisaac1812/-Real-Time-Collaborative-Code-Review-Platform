@@ -40,7 +40,10 @@ const commentSchema = new mongoose.Schema(
       content: String,
       editedAt: { type: Date, default: Date.now }
     }],
-    
+    isDeleted: {
+      type: Boolean,
+      default: false
+    },
     createdAt: { type: Date, default: Date.now },
     updatedAt: { type: Date, default: Date.now }
   },

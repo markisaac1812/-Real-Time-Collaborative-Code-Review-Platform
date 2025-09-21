@@ -1,5 +1,5 @@
 import { Router } from "express";
-import { toggleFollow, getFollowers, getFollowing } from "../controllers/socialController.js";
+import { toggleFollow, getFollowers, getFollowing, getActivityFeed } from "../controllers/socialController.js";
 import { protect, restrictedTo } from "../controllers/authController.js";
 
 const router = Router();
@@ -18,5 +18,8 @@ router.use(protect);
 
 // Follow/unfollow user
 router.route("/follow/:userId").post(toggleFollow);
+
+// Get activity feed
+router.route("/feed/activity").get(getActivityFeed);
 
 export default router;

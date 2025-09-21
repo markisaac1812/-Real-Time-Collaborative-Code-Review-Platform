@@ -137,4 +137,120 @@ export const getFollowing = catchAsync(async (req, res, next) => {
       data: { following }
     });
   });
+
   
+  // GET USER ACTIVITY FEED
+  export const getActivityFeed = catchAsync(async (req, res, next) => {
+    const { page = 1, limit = 20, type = 'all' } = req.query;
+    
+    const user = await User.findById(req.user._id);
+    const followingList = user.following || [];
+    
+    // Add current user to get own activities too
+    const userIds = [...followingList, req.user._id];
+    
+    const skip = (page - 1) * limit;
+    const activities = [];
+  
+    // Get recent submissions
+    if (type === 'all' || type === 'submissions') {
+      const submissions = await CodeSubmission.find({
+        author: { $in: userIds },
+        visibility: 'public',
+        createdAt: { $gte: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000) } // Last 30 days
+      })
+        .populate('author', 'username profile')
+        .sort({ createdAt: -1 })
+        .limit(10);
+  
+      submissions.forEach(submission => {
+        activities.push({
+          type: 'submission',
+          timestamp: submission.createdAt,
+          user: submission.author,
+          data: {
+            submissionId: submission._id,
+            title: submission.title,
+            language: submission.language,
+            tags: submission.tags
+          }
+        });
+      });
+    }
+  
+    // Get recent reviews
+    if (type === 'all' || type === 'reviews') {
+      const reviews = await Review.find({
+        reviewer: { $in: userIds },
+        status: 'submitted',
+        createdAt: { $gte: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000) }
+      })
+        .populate('reviewer', 'username profile')
+        .populate('submission', 'title author')
+        .sort({ createdAt: -1 })
+        .limit(10);
+  
+      reviews.forEach(review => {
+        activities.push({
+          type: 'review',
+          timestamp: review.createdAt,
+          user: review.reviewer,
+          data: {
+            reviewId: review._id,
+            submissionId: review.submission._id,
+            submissionTitle: review.submission.title,
+            rating: review.rating
+          }
+        });
+      });
+    }
+  
+    // Get recent comments
+    if (type === 'all' || type === 'comments') {
+      const comments = await Comment.find({
+        author: { $in: userIds },
+        createdAt: { $gte: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000) }
+      })
+        .populate('author', 'username profile')
+        .populate({
+          path: 'review',
+          populate: {
+            path: 'submission',
+            select: 'title'
+          }
+        })
+        .sort({ createdAt: -1 })
+        .limit(10);
+  
+      comments.forEach(comment => {
+        activities.push({
+          type: 'comment',
+          timestamp: comment.createdAt,
+          user: comment.author,
+          data: {
+            commentId: comment._id,
+            reviewId: comment.review._id,
+            submissionTitle: comment.review.submission.title,
+            content: comment.content.substring(0, 100) + (comment.content.length > 100 ? '...' : '')
+          }
+        });
+      });
+    }
+  
+    // Sort all activities by timestamp
+    activities.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
+  
+    // Paginate
+    const paginatedActivities = activities.slice(skip, skip + parseInt(limit));
+  
+    res.status(200).json({
+      status: "success",
+      results: paginatedActivities.length,
+      pagination: {
+        currentPage: parseInt(page),
+        hasNext: skip + parseInt(limit) < activities.length,
+        hasPrev: page > 1
+      },
+      data: { activities: paginatedActivities }
+    });
+  });  

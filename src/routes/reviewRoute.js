@@ -8,7 +8,8 @@ import {
   addLineComment,
   checkReviewerAvailability,
   markHelpful,
-  getReviewsByReviewer
+  getReviewsByReviewer,
+  getReviewStats
 } from "../controllers/reviewController.js";
 import {
   validateCreateReview,
@@ -23,6 +24,9 @@ const router = Router();
 //public routes
 router.route("/submission/:submissionId").get(getReviewsBySubmission);
 router.route("/:reviewId").get(getReviewById);
+
+// Get review statistics
+router.route("/stats/overview").get(getReviewStats);
 
 router
   .route("/reviewer/:reviewerId/availability")
@@ -58,6 +62,8 @@ router.get("/reviewer/:reviewerId", getReviewsByReviewer);
 // Get current user's reviews
 router.get("/my/reviews", getReviewsByReviewer);
 
+// Get personal review statistics
+router.get("/stats/me", getReviewStats);
 
 
 

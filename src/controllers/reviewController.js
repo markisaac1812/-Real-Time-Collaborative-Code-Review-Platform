@@ -1,3 +1,4 @@
+import mongoose from "mongoose";
 import Review from "../models/Review.js";
 import CodeSubmission from "../models/CodeSubmission.js";
 import User from "../models/userModel.js";
@@ -537,5 +538,111 @@ export const getReviewsByReviewer = catchAsync(async (req, res, next) => {
       },
       data: { reviews }
     });
-  });  
+  }); 
+
+// GET REVIEW STATISTICS
+export const getReviewStats = catchAsync(async (req, res, next) => {
+  const { period = '30d', reviewerId } = req.query;
+  
+  // Date filter
+  let dateFilter = {};
+  const now = new Date();
+  
+  switch (period) {
+    case '7d':
+      dateFilter = { $gte: new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000) };
+      break;
+    case '30d':
+      dateFilter = { $gte: new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000) };
+      break;
+    case '90d':
+      dateFilter = { $gte: new Date(now.getTime() - 90 * 24 * 60 * 60 * 1000) };
+      break;
+    case 'all':
+      dateFilter = {};
+      break;
+  }
+
+  // Build match query
+  const matchQuery = {
+    status: 'submitted',
+    ...(Object.keys(dateFilter).length > 0 && { createdAt: dateFilter })
+  };
+  
+  if (reviewerId) {
+    matchQuery.reviewer =  new mongoose.Types.ObjectId(reviewerId);
+  }
+
+  const stats = await Review.aggregate([
+    { $match: matchQuery },
+    {
+      $group: {
+        _id: null,
+        totalReviews: { $sum: 1 },
+        averageRating: { $avg: '$rating' },
+        averageTimeSpent: { $avg: '$timeSpent' },
+        totalHelpfulVotes: { $sum: { $size: '$interactions.helpful' } },
+        ratingDistribution: { $push: '$rating' },
+        categoryAverages: {
+          $push: '$categories'
+        },
+        totalLineComments: { $sum: { $size: '$lineComments' } },
+        totalSuggestions: { $sum: { $size: '$suggestions' } }
+      }
+    }
+  ]);
+
+  // Calculate rating distribution
+  let ratingDistribution = { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0 };
+  if (stats[0] && stats[0].ratingDistribution) {
+    stats[0].ratingDistribution.forEach(rating => {
+      ratingDistribution[rating] = (ratingDistribution[rating] || 0) + 1;
+    });
+  }
+
+  // Calculate category averages
+  let categoryAverages = {
+    codeQuality: 0,
+    performance: 0,
+    security: 0,
+    maintainability: 0,
+    bestPractices: 0
+  };
+
+  if (stats[0] && stats[0].categoryAverages.length > 0) {
+    const categories = stats[0].categoryAverages;
+    const categoryKeys = Object.keys(categoryAverages);
+    
+    categoryKeys.forEach(key => {
+      const sum = categories.reduce((acc, cat) => acc + (cat[key] || 0), 0);
+      categoryAverages[key] = categories.length > 0 ? sum / categories.length : 0;
+    });
+  }
+
+  const result = {
+    period,
+    overview: stats[0] ? {
+      totalReviews: stats[0].totalReviews,
+      averageRating: Math.round((stats[0].averageRating || 0) * 10) / 10,
+      averageTimeSpent: Math.round((stats[0].averageTimeSpent || 0) * 10) / 10,
+      totalHelpfulVotes: stats[0].totalHelpfulVotes,
+      totalLineComments: stats[0].totalLineComments,
+      totalSuggestions: stats[0].totalSuggestions
+    } : {
+      totalReviews: 0,
+      averageRating: 0,
+      averageTimeSpent: 0,
+      totalHelpfulVotes: 0,
+      totalLineComments: 0,
+      totalSuggestions: 0
+    },
+    ratingDistribution,
+    categoryAverages
+  };
+
+  res.status(200).json({
+    status: "success",
+    data: { stats: result }
+  });
+});   
   

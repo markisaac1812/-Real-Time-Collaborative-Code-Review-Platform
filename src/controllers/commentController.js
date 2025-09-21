@@ -183,4 +183,29 @@ export const getComments = catchAsync(async (req, res, next) => {
       data: { comments: commentsWithReplies }
     });
   });
+
+// GET COMMENT BY ID
+export const getCommentById = catchAsync(async (req, res, next) => {
+    const { commentId } = req.params;
+  
+    const comment = await Comment.findById(commentId)
+      .populate('author', 'username profile reputation')
+      .populate('review', 'submission')
+      .populate({
+        path: 'replies',
+        populate: {
+          path: 'author',
+          select: 'username profile'
+        }
+      });
+  
+    if (!comment) {
+      return next(new AppError("Comment not found", 404));
+    }
+  
+    res.status(200).json({
+      status: "success",
+      data: { comment }
+    });
+  });  
   

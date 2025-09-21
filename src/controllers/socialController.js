@@ -65,3 +65,39 @@ export const toggleFollow = catchAsync(async (req, res, next) => {
     }
   });
 });
+
+// GET USER'S FOLLOWERS
+export const getFollowers = catchAsync(async (req, res, next) => {
+  const { userId } = req.params;
+  const { page = 1, limit = 20 } = req.query;
+
+  const user = await User.findById(userId);
+  if (!user) {
+    return next(new AppError("User not found", 404));
+  }
+
+  const skip = (page - 1) * limit;
+  
+  const followers = await User.find({
+    _id: { $in: user.followers || [] },
+    isActive: true
+  })
+    .select('username profile reputation createdAt')
+    .sort({ createdAt: -1 })
+    .limit(parseInt(limit))
+    .skip(skip);
+
+  const totalFollowers = user.followers?.length || 0;
+  const totalPages = Math.ceil(totalFollowers / limit);
+
+  res.status(200).json({
+    status: "success",
+    results: followers.length,
+    pagination: {
+      currentPage: parseInt(page),
+      totalPages,
+      totalResults: totalFollowers
+    },
+    data: { followers }
+  });
+});

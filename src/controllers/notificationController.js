@@ -156,3 +156,30 @@ export const getNotificationSettings = catchAsync(async (req, res, next) => {
       data: { settings }
     });
   });  
+
+// UPDATE NOTIFICATION SETTINGS
+export const updateNotificationSettings = catchAsync(async (req, res, next) => {
+    const { emailNotifications, notificationTypes } = req.body;
+  
+    const updateData = {};
+    
+    if (emailNotifications !== undefined) {
+      updateData['preferences.emailNotifications'] = emailNotifications;
+    }
+    
+    if (notificationTypes) {
+      updateData['preferences.notificationTypes'] = notificationTypes;
+    }
+  
+    const user = await User.findByIdAndUpdate(
+      req.user._id,
+      updateData,
+      { new: true, runValidators: true }
+    ).select('preferences');
+  
+    res.status(200).json({
+      status: "success",
+      message: "Notification settings updated",
+      data: { preferences: user.preferences }
+    });
+  });  

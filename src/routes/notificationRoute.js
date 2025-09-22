@@ -6,6 +6,7 @@ import {
   deleteNotification,
   deleteReadNotifications,
   getNotificationSettings,
+  updateNotificationSettings,
 } from "../controllers/notificationController.js";
 import { protect } from "../controllers/authController.js";
 const router = Router();
@@ -28,7 +29,8 @@ router.route("/:notificationId").delete(deleteNotification);
 // Delete all read notifications
 router.route("/read/cleanup").delete(deleteReadNotifications);
 
-// Get notification settings
-router.route("/settings").get(getNotificationSettings);
+// Get notification settings / update notification settings
+router.route("/settings").get(getNotificationSettings).put(updateNotificationSettings);
+
 
 export default router;

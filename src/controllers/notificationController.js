@@ -1,6 +1,7 @@
 import Notification from "../models/notification.js";
 import catchAsync from "../utils/catchAsync.js";
 import AppError from "../utils/appError.js";
+import User from "../models/userModel.js";
 
 // GET USER'S NOTIFICATIONS
 export const getNotifications = catchAsync(async (req, res, next) => {
@@ -129,5 +130,29 @@ export const deleteReadNotifications = catchAsync(async (req, res, next) => {
       data: { 
         deletedCount: result.deletedCount 
       }
+    });
+  }); 
+  
+// GET NOTIFICATION SETTINGS
+export const getNotificationSettings = catchAsync(async (req, res, next) => {
+    const user = await User.findById(req.user._id)
+      .select('preferences');
+  
+    const settings = {
+      emailNotifications: user.preferences?.emailNotifications ?? true,
+      notificationTypes: user.preferences?.notificationTypes ?? {
+        review_request: true,
+        review_completed: true,
+        comment_added: true,
+        submission_updated: true,
+        mention: true,
+        follow: true,
+        helpful_vote: true
+      }
+    };
+  
+    res.status(200).json({
+      status: "success",
+      data: { settings }
     });
   });  

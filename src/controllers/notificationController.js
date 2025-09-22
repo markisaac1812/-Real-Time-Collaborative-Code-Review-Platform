@@ -71,3 +71,24 @@ export const markAsRead = catchAsync(async (req, res, next) => {
       data: { notification }
     });
   });
+// MARK ALL NOTIFICATIONS AS READ
+export const markAllAsRead = catchAsync(async (req, res, next) => {
+    const result = await Notification.updateMany(
+      { 
+        recipient: req.user._id, 
+        isRead: false 
+      },
+      { 
+        isRead: true, 
+        readAt: new Date() 
+      }
+    );
+  
+    res.status(200).json({
+      status: "success",
+      message: `Marked ${result.modifiedCount} notifications as read`,
+      data: { 
+        markedCount: result.modifiedCount 
+      }
+    });
+  });

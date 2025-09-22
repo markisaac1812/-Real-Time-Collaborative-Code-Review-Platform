@@ -92,3 +92,26 @@ export const markAllAsRead = catchAsync(async (req, res, next) => {
       }
     });
   });
+
+// DELETE NOTIFICATION
+export const deleteNotification = catchAsync(async (req, res, next) => {
+    const { notificationId } = req.params;
+  
+    const notification = await Notification.findById(notificationId);
+    
+    if (!notification) {
+      return next(new AppError("Notification not found", 404));
+    }
+  
+    // Check if user owns this notification
+    if (notification.recipient.toString() !== req.user._id.toString()) {
+      return next(new AppError("You can only delete your own notifications", 403));
+    }
+  
+    await Notification.findByIdAndDelete(notificationId);
+  
+    res.status(200).json({
+      status: "success",
+      message: "Notification deleted successfully"
+    });
+  });  

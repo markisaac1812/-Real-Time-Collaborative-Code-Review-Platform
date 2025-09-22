@@ -43,3 +43,31 @@ export const getNotifications = catchAsync(async (req, res, next) => {
     data: { notifications }
   });
 });
+
+// MARK NOTIFICATION AS READ
+export const markAsRead = catchAsync(async (req, res, next) => {
+    const { notificationId } = req.params;
+  
+    const notification = await Notification.findById(notificationId);
+    
+    if (!notification) {
+      return next(new AppError("Notification not found", 404));
+    }
+  
+    // Check if user owns this notification
+    if (notification.recipient.toString() !== req.user._id.toString()) {
+      return next(new AppError("You can only mark your own notifications as read", 403));
+    }
+  
+    if (!notification.isRead) {
+      notification.isRead = true;
+      notification.readAt = new Date();
+      await notification.save();
+    }
+  
+    res.status(200).json({
+      status: "success",
+      message: "Notification marked as read",
+      data: { notification }
+    });
+  });

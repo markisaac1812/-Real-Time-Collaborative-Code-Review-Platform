@@ -1,5 +1,5 @@
 import { Router } from "express";
-import { getNotifications } from "../controllers/notificationController.js";
+import { getNotifications,markAsRead } from "../controllers/notificationController.js";
 import { protect } from "../controllers/authController.js";
 const router = Router();
 
@@ -8,5 +8,8 @@ router.use(protect);
 
 // Get user's notifications
 router.route('/').get(getNotifications);
+
+// Mark notification as read
+router.route('/:notificationId/read').put(markAsRead);
 
 export default router;

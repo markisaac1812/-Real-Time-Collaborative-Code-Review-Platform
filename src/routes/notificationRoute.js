@@ -1,5 +1,5 @@
 import { Router } from "express";
-import { getNotifications,markAsRead,markAllAsRead ,deleteNotification} from "../controllers/notificationController.js";
+import { getNotifications,markAsRead,markAllAsRead ,deleteNotification,deleteReadNotifications} from "../controllers/notificationController.js";
 import { protect } from "../controllers/authController.js";
 const router = Router();
 
@@ -17,5 +17,8 @@ router.route('/mark-all-read').put(markAllAsRead);
 
 // Delete specific notification
 router.route("/:notificationId").delete(deleteNotification);
+
+// Delete all read notifications
+router.route("/read/cleanup").delete(deleteReadNotifications);
 
 export default router;

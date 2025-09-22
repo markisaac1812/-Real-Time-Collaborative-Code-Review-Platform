@@ -115,3 +115,19 @@ export const deleteNotification = catchAsync(async (req, res, next) => {
       message: "Notification deleted successfully"
     });
   });  
+
+// DELETE ALL READ NOTIFICATIONS
+export const deleteReadNotifications = catchAsync(async (req, res, next) => {
+    const result = await Notification.deleteMany({
+      recipient: req.user._id,
+      isRead: true
+    });
+  
+    res.status(200).json({
+      status: "success",
+      message: `Deleted ${result.deletedCount} read notifications`,
+      data: { 
+        deletedCount: result.deletedCount 
+      }
+    });
+  });  

@@ -3,6 +3,8 @@ import jwt from 'jsonwebtoken';
 import User from '../models/userModel.js';
 import { handleConnection } from './handlers/connectionHandler.js';
 import { handleNotifications } from './handlers/notificationHandler.js';
+import { handleReviews } from './handlers/reviewHandler.js';
+import { handlePresence } from './handlers/presenceHandler.js';
 
 // Socket authentication middleware
 const socketAuth = async (socket, next) => {

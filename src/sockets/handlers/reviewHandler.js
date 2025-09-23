@@ -1,6 +1,7 @@
 import Review from '../../models/Review.js';
 import Comment from '../../models/comment.js';
 import CodeSubmission from '../../models/CodeSubmission.js';
+import { sendRealTimeNotification } from './notificationHandler.js';
 
 export const handleReviews = (io, socket) => {
   // Real-time comment creation

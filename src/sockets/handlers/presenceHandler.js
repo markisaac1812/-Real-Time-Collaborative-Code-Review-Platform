@@ -1,5 +1,8 @@
+import { getConnectedUsers } from './connectionHandler.js';
+
 const userPresence = new Map(); // userId -> presence info
 const submissionViewers = new Map(); // submissionId -> Set of userIds
+const connectedUsers = getConnectedUsers(); // Add this line
 
 export const handlePresence = (io, socket) => {
   const userId = socket.userId;

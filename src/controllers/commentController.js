@@ -108,6 +108,17 @@ export const createComment = catchAsync(async (req, res, next) => {
   // Give small reputation boost for engagement
   await updateUserReputation(req.user._id, 1, "comment_created");
 
+  const io = req.app.get('io');
+emitToReview(io, reviewId, 'comment:created', {
+  comment: newComment,
+  reviewId,
+  author: {
+    id: req.user._id,
+    username: req.user.username,
+    profile: req.user.profile
+  }
+});
+
   res.status(201).json({
     status: "success",
     data: { comment: newComment },
@@ -264,6 +275,14 @@ export const updateComment = catchAsync(async (req, res, next) => {
   // Populate author info
   await comment.populate("author", "username profile reputation");
 
+  emitToReview(io, comment.review, 'comment:updated', {
+    comment: updatedComment,
+    editedBy: {
+      id: req.user._id,
+      username: req.user.username
+    }
+  });
+
   res.status(200).json({
     status: "success",
     data: { comment },
@@ -371,6 +390,19 @@ export const reactToComment = catchAsync(async (req, res, next) => {
     }
   
     await comment.save();
+
+    emitToReview(io, comment.review, 'comment:reaction_updated', {
+      commentId,
+      reactions: {
+        likes: comment.reactions.likes.length,
+        dislikes: comment.reactions.dislikes.length
+      },
+      userReaction: !isAlreadyReacted ? reaction : null,
+      reactedBy: {
+        id: req.user._id,
+        username: req.user.username
+      }
+    });
   
     res.status(200).json({
       status: "success",

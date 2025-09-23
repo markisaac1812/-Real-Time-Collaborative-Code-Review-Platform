@@ -1,5 +1,6 @@
 import mongoose from "mongoose";
 import app from "./app.js";
+import { initSocketServer } from "./sockets/index.js";
 
 process.on("uncaughtException", (err) => {
   console.log("unhandled exception shutting down");
@@ -16,14 +17,26 @@ mongoose.connect(DB).then((con) => {
   console.log("db connection succefully");
 });
 
+
 const port = process.env.PORT;
 const server = app.listen(port, () => {
   console.log(`app running on port ${port}`);
 });
 
+// Initialize Socket.io
+const io = initSocketServer(server);
+app.set('io', io);
+
 process.on("unhandledRejection", (err) => {
   console.log(err.name, err.message);
   server.close(() => {
     process.exit(1);
+  });
+});
+
+process.on('SIGTERM', () => {
+  console.log('👋 SIGTERM RECEIVED. Shutting down gracefully');
+  server.close(() => {
+    console.log('💥 Process terminated!');
   });
 });

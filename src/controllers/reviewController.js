@@ -108,6 +108,17 @@ export const createReview = catchAsync(async (req, res, next) => {
     await updateUserReputation(submission.author, 2, 'review_received');
   }
 
+  const io = req.app.get('io');
+emitToSubmission(io, submissionId, 'review:created', {
+  review: newReview,
+  submissionId,
+  reviewer: {
+    id: req.user._id,
+    username: req.user.username,
+    profile: req.user.profile
+  }
+});
+
   res.status(201).json({
     status: "success",
     data: { review: newReview }
@@ -304,6 +315,18 @@ export const updateReview = catchAsync(async (req, res, next) => {
       await updateUserReputation(req.user._id, 10, 'review_given');
       await updateUserReputation(submission.author, 2, 'review_received');
     }
+
+    if (status === 'submitted' && review.status === 'draft') {
+      emitToSubmission(io, submission._id, 'review:submitted', {
+        reviewId: updatedReview._id,
+        submissionId: submission._id,
+        reviewer: {
+          id: req.user._id,
+          username: req.user.username
+        },
+        rating: updatedReview.rating
+      });
+    }
   
     res.status(200).json({
       status: "success",
@@ -489,6 +512,15 @@ export const markHelpful = catchAsync(async (req, res, next) => {
     }
   
     await review.save();
+
+    emitToSubmission(io, review.submission, 'review:helpful_updated', {
+      reviewId,
+      helpfulCount: review.interactions.helpful.length,
+      markedBy: {
+        id: req.user._id,
+        username: req.user.username
+      }
+    });
   
     res.status(200).json({
       status: "success",

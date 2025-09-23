@@ -1,8 +1,5 @@
-import { getConnectedUsers } from './connectionHandler.js';
-
 const userPresence = new Map(); // userId -> presence info
 const submissionViewers = new Map(); // submissionId -> Set of userIds
-const connectedUsers = getConnectedUsers(); // Add this line
 
 export const handlePresence = (io, socket) => {
   const userId = socket.userId;
@@ -73,11 +70,9 @@ export const handlePresence = (io, socket) => {
     
     const onlineUsers = Array.from(viewers).map(uid => {
       const presence = userPresence.get(uid);
-      const connectedUser = connectedUsers.get(uid);
       
       return {
         userId: uid,
-        username: connectedUser?.username,
         status: presence?.status || 'offline',
         activity: presence?.currentActivity,
         lastSeen: presence?.lastSeen

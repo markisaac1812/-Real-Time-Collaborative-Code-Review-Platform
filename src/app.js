@@ -12,6 +12,7 @@ import reviewRoute from "./routes/reviewRoute.js";
 import commentRoute from "./routes/commentRoute.js";
 import socialRoute from "./routes/socialRoute.js";
 import notificationRoute from "./routes/notificationRoute.js";
+import realTimeRoute from "./routes/realTimeRoute.js";
 import cors from "cors";
 import helmet from "helmet";
 import rateLimiter from "express-rate-limit";
@@ -49,6 +50,7 @@ app.use("/api/reviews",reviewRoute);
 app.use("/api/comments",commentRoute);
 app.use("/api/social",socialRoute);
 app.use("/api/notifications",notificationRoute);
+app.use("/api/realtime",realTimeRoute);
 
 //API Documentation endpoint
 app.get("/api", (req, res) => {

@@ -1,6 +1,7 @@
 import mongoose from "mongoose";
 import app from "./app.js";
 import { initSocketServer } from "./sockets/index.js";
+import { sendSystemNotification } from "./controllers/realTimeController.js";
 
 process.on("uncaughtException", (err) => {
   console.log("unhandled exception shutting down");
@@ -12,6 +13,7 @@ const DB = process.env.MONGO_DB_CONNECTION_STRING.replace(
   "<db_password>",
   process.env.MONGO_DB_PASSWORD
 );
+
 
 mongoose.connect(DB).then((con) => {
   console.log("db connection succefully");

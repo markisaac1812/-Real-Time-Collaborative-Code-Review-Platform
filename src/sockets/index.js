@@ -2,6 +2,7 @@ import { Server } from 'socket.io';
 import jwt from 'jsonwebtoken';
 import User from '../models/userModel.js';
 import { handleConnection } from './handlers/connectionHandler.js';
+import { handleNotifications } from './handlers/notificationHandler.js';
 
 // Socket authentication middleware
 const socketAuth = async (socket, next) => {

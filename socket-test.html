@@ -1,0 +1,387 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Socket.io Test - Code Review Platform</title>
+    <script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+            background: #f5f5f5;
+        }
+        .container {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .status {
+            padding: 10px;
+            border-radius: 4px;
+            margin-bottom: 10px;
+            font-weight: bold;
+        }
+        .connected { background: #d4edda; color: #155724; }
+        .disconnected { background: #f8d7da; color: #721c24; }
+        .error { background: #f8d7da; color: #721c24; }
+        
+        input, button, select {
+            padding: 8px 12px;
+            margin: 5px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+        }
+        button {
+            background: #007bff;
+            color: white;
+            cursor: pointer;
+            border: none;
+        }
+        button:hover { background: #0056b3; }
+        button:disabled {
+            background: #6c757d;
+            cursor: not-allowed;
+        }
+        
+        .log {
+            background: #f8f9fa;
+            border: 1px solid #dee2e6;
+            padding: 10px;
+            height: 300px;
+            overflow-y: auto;
+            font-family: monospace;
+            font-size: 12px;
+            white-space: pre-wrap;
+        }
+        
+        .grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+        }
+        
+        .test-section {
+            border-left: 4px solid #007bff;
+            padding-left: 15px;
+        }
+        
+        .notification {
+            background: #e7f3ff;
+            border: 1px solid #b8daff;
+            padding: 10px;
+            margin: 5px 0;
+            border-radius: 4px;
+        }
+    </style>
+</head>
+<body>
+    <h1>🚀 Socket.io Test Dashboard</h1>
+    
+    <!-- Connection Section -->
+    <div class="container">
+        <h2>🔌 Connection</h2>
+        <div id="connectionStatus" class="status disconnected">Disconnected</div>
+        
+        <div>
+            <label>Server URL:</label>
+            <input type="text" id="serverUrl" value="http://localhost:3000" style="width: 200px;">
+        </div>
+        
+        <div>
+            <label>JWT Token:</label>
+            <input type="text" id="jwtToken" placeholder="Paste your JWT token here" style="width: 400px;">
+        </div>
+        
+        <button id="connectBtn">Connect</button>
+        <button id="disconnectBtn" disabled>Disconnect</button>
+    </div>
+
+    <div class="grid">
+        <!-- Testing Section -->
+        <div class="container">
+            <h2>🧪 Socket Tests</h2>
+            
+            <div class="test-section">
+                <h3>📧 Notifications</h3>
+                <button id="fetchNotifications">Fetch Unread Notifications</button>
+                <button id="markAllRead">Mark All as Read</button>
+                <div id="notificationsList"></div>
+            </div>
+            
+            <div class="test-section">
+                <h3>🏠 Room Management</h3>
+                <input type="text" id="submissionId" placeholder="Submission ID (e.g., test123)" value="test123">
+                <button id="joinSubmission">Join Submission Room</button>
+                <button id="leaveSubmission">Leave Submission Room</button>
+                
+                <br><br>
+                <input type="text" id="reviewId" placeholder="Review ID (e.g., review123)" value="review123">
+                <button id="joinReview">Join Review Room</button>
+            </div>
+            
+            <div class="test-section">
+                <h3>👀 Presence</h3>
+                <select id="activityType">
+                    <option value="viewing">Viewing</option>
+                    <option value="reviewing">Reviewing</option>
+                    <option value="commenting">Commenting</option>
+                </select>
+                <button id="updateActivity">Update Activity</button>
+                <button id="goAway">Go Away</button>
+                <button id="comeBack">Come Back</button>
+            </div>
+            
+            <div class="test-section">
+                <h3>💬 Comments (Test)</h3>
+                <input type="text" id="commentContent" placeholder="Test comment" value="Hello from socket test!">
+                <button id="createComment">Create Comment</button>
+                <button id="likeComment">Like Comment (ID: test)</button>
+            </div>
+        </div>
+
+        <!-- Logs Section -->
+        <div class="container">
+            <h2>📋 Event Logs</h2>
+            <button id="clearLogs">Clear Logs</button>
+            <div id="eventLogs" class="log"></div>
+        </div>
+    </div>
+
+    <script>
+// Test if server is reachable
+fetch('http://localhost:3000/api')
+  .then(r => r.json())
+  .then(data => console.log('✅ Server reachable:', data))
+  .catch(e => console.log('❌ Server not reachable:', e));
+
+        let socket = null;
+        let isConnected = false;
+
+        // DOM Elements
+        const connectionStatus = document.getElementById('connectionStatus');
+        const serverUrl = document.getElementById('serverUrl');
+        const jwtToken = document.getElementById('jwtToken');
+        const connectBtn = document.getElementById('connectBtn');
+        const disconnectBtn = document.getElementById('disconnectBtn');
+        const eventLogs = document.getElementById('eventLogs');
+        const notificationsList = document.getElementById('notificationsList');
+
+        // Logging function
+        function log(message, type = 'info') {
+            const timestamp = new Date().toLocaleTimeString();
+            const logEntry = `[${timestamp}] ${type.toUpperCase()}: ${message}\n`;
+            eventLogs.textContent += logEntry;
+            eventLogs.scrollTop = eventLogs.scrollHeight;
+            console.log(logEntry);
+        }
+
+        // Update connection status
+        function updateConnectionStatus(connected, message = '') {
+            isConnected = connected;
+            connectionStatus.textContent = connected ? `Connected ${message}` : `Disconnected ${message}`;
+            connectionStatus.className = `status ${connected ? 'connected' : 'disconnected'}`;
+            connectBtn.disabled = connected;
+            disconnectBtn.disabled = !connected;
+            
+            // Enable/disable test buttons
+            const testButtons = document.querySelectorAll('button:not(#connectBtn):not(#disconnectBtn):not(#clearLogs)');
+            testButtons.forEach(btn => btn.disabled = !connected);
+        }
+
+        // Connect to socket
+        function connectSocket() {
+            const url = serverUrl.value;
+            const token = jwtToken.value;
+
+            if (!token) {
+                alert('Please enter a JWT token');
+                return;
+            }
+
+            log(`Connecting to ${url}...`);
+
+            socket = io(url, {
+                auth: { token: token }
+            });
+
+            // Connection events
+            socket.on('connect', () => {
+                log(`✅ Connected! Socket ID: ${socket.id}`, 'success');
+                updateConnectionStatus(true, `(${socket.id})`);
+            });
+
+            socket.on('connect_error', (error) => {
+                log(`❌ Connection failed: ${error.message}`, 'error');
+                updateConnectionStatus(false, '- Connection failed');
+            });
+
+            socket.on('disconnect', (reason) => {
+                log(`🔌 Disconnected: ${reason}`, 'warning');
+                updateConnectionStatus(false, `- ${reason}`);
+            });
+
+            // Socket event listeners
+            setupSocketListeners();
+        }
+
+        // Setup all socket event listeners
+        function setupSocketListeners() {
+            // Notifications
+            socket.on('notifications:unread_list', (data) => {
+                log(`📧 Received ${data.notifications.length} unread notifications`);
+                displayNotifications(data.notifications);
+            });
+
+            socket.on('notifications:unread_count', (data) => {
+                log(`📊 Unread count: ${data.count}`);
+            });
+
+            socket.on('notification:new', (data) => {
+                log(`🔔 New notification: ${data.notification.data.message}`);
+            });
+
+            // Room events
+            socket.on('user:joined_submission', (data) => {
+                log(`👤 User ${data.username} joined submission ${data.submissionId}`);
+            });
+
+            socket.on('user:left_submission', (data) => {
+                log(`👋 User ${data.username} left submission ${data.submissionId}`);
+            });
+
+            socket.on('user:joined_review', (data) => {
+                log(`🔍 User ${data.username} joined review ${data.reviewId}`);
+            });
+
+            // Presence events
+            socket.on('presence:user_viewing', (data) => {
+                log(`👀 ${data.username} is ${data.activity}`);
+            });
+
+            socket.on('presence:user_away', (data) => {
+                log(`😴 ${data.username} went away`);
+            });
+
+            socket.on('presence:user_back', (data) => {
+                log(`😊 ${data.username} came back`);
+            });
+
+            // Comment events
+            socket.on('comment:created', (data) => {
+                log(`💬 New comment in review ${data.reviewId}`);
+            });
+
+            socket.on('comment:reaction_updated', (data) => {
+                log(`👍 Comment reaction: ${data.reactions.likes} likes, ${data.reactions.dislikes} dislikes`);
+            });
+
+            // Error handling
+            socket.on('error', (data) => {
+                log(`❌ Socket error: ${data.message}`, 'error');
+            });
+
+            // Generic event logger
+            socket.onAny((eventName, ...args) => {
+                if (!eventName.startsWith('connect') && !eventName.startsWith('disconnect')) {
+                    log(`📡 Event: ${eventName} - ${JSON.stringify(args)}`);
+                }
+            });
+        }
+
+        // Display notifications
+        function displayNotifications(notifications) {
+            notificationsList.innerHTML = '';
+            notifications.forEach(notif => {
+                const div = document.createElement('div');
+                div.className = 'notification';
+                div.innerHTML = `
+                    <strong>${notif.type}</strong><br>
+                    ${notif.data.message}<br>
+                    <small>${new Date(notif.createdAt).toLocaleString()}</small>
+                `;
+                notificationsList.appendChild(div);
+            });
+        }
+
+        // Event handlers
+        connectBtn.addEventListener('click', connectSocket);
+        disconnectBtn.addEventListener('click', () => {
+            if (socket) {
+                socket.disconnect();
+            }
+        });
+
+        document.getElementById('clearLogs').addEventListener('click', () => {
+            eventLogs.textContent = '';
+        });
+
+        // Test button handlers
+        document.getElementById('fetchNotifications').addEventListener('click', () => {
+            socket.emit('notifications:fetch_unread');
+            log('📤 Fetching unread notifications...');
+        });
+
+        document.getElementById('markAllRead').addEventListener('click', () => {
+            socket.emit('notifications:mark_all_read');
+            log('📤 Marking all notifications as read...');
+        });
+
+        document.getElementById('joinSubmission').addEventListener('click', () => {
+            const submissionId = document.getElementById('submissionId').value;
+            socket.emit('join:submission', { submissionId });
+            log(`📤 Joining submission room: ${submissionId}`);
+        });
+
+        document.getElementById('leaveSubmission').addEventListener('click', () => {
+            const submissionId = document.getElementById('submissionId').value;
+            socket.emit('leave:submission', { submissionId });
+            log(`📤 Leaving submission room: ${submissionId}`);
+        });
+
+        document.getElementById('joinReview').addEventListener('click', () => {
+            const reviewId = document.getElementById('reviewId').value;
+            const submissionId = document.getElementById('submissionId').value;
+            socket.emit('join:review_session', { reviewId, submissionId });
+            log(`📤 Joining review session: ${reviewId}`);
+        });
+
+        document.getElementById('updateActivity').addEventListener('click', () => {
+            const activity = document.getElementById('activityType').value;
+            const submissionId = document.getElementById('submissionId').value;
+            socket.emit('presence:activity', { activity, submissionId });
+            log(`📤 Updated activity: ${activity}`);
+        });
+
+        document.getElementById('goAway').addEventListener('click', () => {
+            socket.emit('presence:away');
+            log('📤 Going away...');
+        });
+
+        document.getElementById('comeBack').addEventListener('click', () => {
+            socket.emit('presence:back');
+            log('📤 Coming back...');
+        });
+
+        document.getElementById('createComment').addEventListener('click', () => {
+            const content = document.getElementById('commentContent').value;
+            const reviewId = document.getElementById('reviewId').value;
+            socket.emit('comment:create', { reviewId, content });
+            log(`📤 Creating comment: "${content}"`);
+        });
+
+        document.getElementById('likeComment').addEventListener('click', () => {
+            socket.emit('comment:react', { commentId: 'test123', reaction: 'like' });
+            log('📤 Liking test comment...');
+        });
+
+        // Initialize
+        updateConnectionStatus(false);
+        log('🚀 Socket test dashboard loaded. Enter your JWT token and click Connect!');
+    </script>
+</body>
+</html>

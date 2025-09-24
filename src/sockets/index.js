@@ -37,7 +37,7 @@ const socketAuth = async (socket, next) => {
   export const initSocketServer = (httpServer) => {
     const io = new Server(httpServer, {
       cors: {
-        origin: process.env.FRONTEND_URL || "http://localhost:3000",
+         origin:  process.env.FRONTEND_URL || "http://localhost:3000", //"*" for testing
         methods: ["GET", "POST"],
         credentials: true
       },

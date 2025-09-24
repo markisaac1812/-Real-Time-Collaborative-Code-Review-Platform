@@ -35,7 +35,7 @@ router.get("/users/:userId/status", checkUserOnlineStatus);
 router.get("/submissions/:submissionId/viewers", getSubmissionViewers);
 
 // Send system notification
-router.post("/notifications/send", sendSystemNotification);
+router.post("/notifications/send", restrictedTo('admin'), sendSystemNotification);
 
 // WebSocket statistics (admin only)
 router.get("/stats", restrictedTo('admin'), getWebSocketStats);

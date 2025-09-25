@@ -1,13 +1,13 @@
 import { analyticsQueue } from '../config/queue.js';
 import User from '../models/userModel.js';
-import CodeSubmission from '../models/codeSubmissionModel.js';
-import Review from '../models/reviewModel.js';
+import CodeSubmission from '../models/CodeSubmission.js';
+import Review from '../models/Review.js';
+import Comment from '../models/comment.js';
 import { cacheSet, cacheDelete } from '../utils/cache.js';
 
 // Process analytics calculations
 analyticsQueue.process('calculate-daily-stats', 2, async (job) => {
   const { date = new Date() } = job.data;
-  
   try {
     const startOfDay = new Date(date);
     startOfDay.setHours(0, 0, 0, 0);

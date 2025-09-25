@@ -1,5 +1,6 @@
 import { performanceMonitor } from '../utils/performanceMonitoring.js';
 import { redis } from '../config/redis.js';
+import mongoose from 'mongoose';
 
 // Response compression middleware
 export const compressionMiddleware = (req, res, next) => {

@@ -15,11 +15,21 @@ export const compressionMiddleware = (req, res, next) => {
 export const responseTimeMiddleware = (req, res, next) => {
   const startTime = process.hrtime();
 
-  res.on('finish', () => {
+  // Store original end method
+  const originalEnd = res.end;
+  
+  res.end = function(...args) {
     const [seconds, nanoseconds] = process.hrtime(startTime);
     const milliseconds = seconds * 1000 + nanoseconds / 1000000;
-    res.setHeader('X-Response-Time', `${milliseconds.toFixed(2)}ms`);
-  });
+    
+    // Set header before ending response
+    if (!res.headersSent) {
+      res.setHeader('X-Response-Time', `${milliseconds.toFixed(2)}ms`);
+    }
+    
+    // Call original end method
+    originalEnd.apply(res, args);
+  };
 
   next();
 };

@@ -1,11 +1,11 @@
 import crypto from 'crypto';
-import  {getCachedSubmissionList, cacheSubmissionList} from '../utils/cache.js';
+import  {getCachedSubmissionList, cacheSubmissionList, cacheGet, cacheSet} from '../utils/cache.js';
 
 //Generate cache key from request
 const generateCacheKey = (req) => {
   const { query, params, user } = req;
   const keyData = {
-    path: req.route.path,
+    path: req.route?.path || req.path,
     query,
     params,
     userId: user?.id // Include user ID for personalized caches
@@ -34,20 +34,29 @@ export const cacheMiddleware = (cacheTtl = 300) => {
       }
       
       // Store original json method
-      const originalJson = res.json;
+      const originalJson = res.json.bind(res);
+      let responseSent = false;
       
       // Override json method to cache response
       res.json = function(data) {
+        // Prevent double response
+        if (responseSent || res.headersSent) {
+          return res;
+        }
+        responseSent = true;
+        
         // Only cache successful responses
         if (res.statusCode === 200) {
           cacheSet(`api:${cacheKey}`, data, cacheTtl).catch(console.error);
         }
         
-        // Add cache miss header
-        res.set('X-Cache', 'MISS');
+        // Add cache miss header if headers not sent
+        if (!res.headersSent) {
+          res.set('X-Cache', 'MISS');
+        }
         
         // Call original json method
-        return originalJson.call(this, data);
+        return originalJson(data);
       };
       
       next();

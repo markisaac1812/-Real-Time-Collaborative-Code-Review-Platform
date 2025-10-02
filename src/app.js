@@ -16,7 +16,8 @@ import notificationRoute from "./routes/notificationRoute.js";
 import realTimeRoute from "./routes/realTimeRoute.js";
 import cors from "cors";
 import helmet from "helmet";
-import rateLimiter from "express-rate-limit";
+import swaggerUi from "swagger-ui-express";
+import {swaggerSpec} from "./config/swagger.js";
 
 import{responseTimeMiddleware,memoryMonitorMiddleware} from "./middlewares/performance.js";
 import { cacheMiddleware } from "./middlewares/cache.js";
@@ -147,6 +148,18 @@ app.get("/api", (req, res) => {
     },
     documentation: "Visit /api/docs for detailed API documentation",
   });
+});
+
+app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec, {
+  customCss: '.swagger-ui .topbar { display: none }',
+  customSiteTitle: 'CodeReview API Documentation',
+  customfavIcon: '/favicon.ico'
+}));
+
+// Swagger JSON endpoint
+app.get('/api-docs.json', (req, res) => {
+  res.setHeader('Content-Type', 'application/json');
+  res.send(swaggerSpec);
 });
 
 app.use("/{*any}", (req, res, next) => {

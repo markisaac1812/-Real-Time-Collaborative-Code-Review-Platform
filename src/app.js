@@ -16,8 +16,12 @@ import notificationRoute from "./routes/notificationRoute.js";
 import realTimeRoute from "./routes/realTimeRoute.js";
 import cors from "cors";
 import helmet from "helmet";
+import noSQLSantize from "./utils/NSQLSantize.js";
+import sanitizeReqBody from "./utils/santizeReqBody.js";
+import hpp from "hpp";
 import swaggerUi from "swagger-ui-express";
 import {swaggerSpec} from "./config/swagger.js";
+
 
 import{responseTimeMiddleware,memoryMonitorMiddleware} from "./middlewares/performance.js";
 import { cacheMiddleware } from "./middlewares/cache.js";
@@ -74,6 +78,17 @@ app.use(cors({
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE'],
   allowedHeaders: ['Content-Type', 'Authorization'],
+}));
+
+// NoSQL Injection protection
+app.use(noSQLSantize);
+
+// Sanitize request body
+app.use(sanitizeReqBody);
+
+//prevent parameter pollution (not allowing duplicates in query (sort,duration etc(sort=5&sort=9))
+app.use(hpp({
+  whitelist: ["duration"]
 }));
 
 // Rate limiting

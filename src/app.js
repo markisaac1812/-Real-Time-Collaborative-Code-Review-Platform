@@ -92,8 +92,8 @@ app.use(hpp({
 }));
 
 // Rate limiting
-app.use(`/api`,apiRateLimiter.middleware());
-app.use(`/api/auth`,authRateLimiter.middleware());
+//app.use(`/api`,apiRateLimiter.middleware());
+//app.use(`/api/auth`,authRateLimiter.middleware());
 app.use(`/api/submissions`,submitRateLimiter.middleware());
 
 // CACHING MIDDLEWARE

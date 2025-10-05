@@ -41,7 +41,7 @@ const startServer = async()=>{
      app.set('io', io);
 
     // Start performance monitoring
-    startPerformanceMonitoring();
+    //startPerformanceMonitoring();
 
      // Schedule daily analytics
      cron.schedule('0 1 * * *', async () => { // 1 AM daily

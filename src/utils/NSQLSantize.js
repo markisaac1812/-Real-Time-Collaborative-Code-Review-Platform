@@ -1,18 +1,16 @@
 import mongoSanitize from "mongo-sanitize";
 
 export default (req, res, next) => {
-  req.body = sanitizeObject(req.body);
-  req.query = sanitizeObject(req.query);
-  req.params = sanitizeObject(req.params);
+  sanitizeObjectInPlace(req.body);
+  sanitizeObjectInPlace(req.query);
+  sanitizeObjectInPlace(req.params);
   next();
 };
 
-function sanitizeObject(obj) {
-  if (!obj || typeof obj !== 'object') return obj;
+function sanitizeObjectInPlace(obj) {
+  if (!obj || typeof obj !== "object") return;
 
-  const sanitized = {};
   for (let key in obj) {
-    sanitized[key] = mongoSanitize(obj[key]);
+    obj[key] = mongoSanitize(obj[key]); // mutate directly
   }
-  return sanitized;
 }
